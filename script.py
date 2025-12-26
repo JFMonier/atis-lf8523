@@ -52,6 +52,6 @@ def verifier_r147():
 
     except Exception as e:
         print(f"Erreur lors de la vérification : {e}")
-
+envoyer_telegram("✅ Test de liaison réussi pour Atlantic Air Park !")
 if __name__ == "__main__":
     verifier_r147()
