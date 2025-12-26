@@ -1,38 +1,57 @@
 import requests
 import os
 
-# Récupération des clés sécurisées depuis GitHub Actions
-TOKEN = os.getenv("TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-# Utilisation de l'API de OpenAviationData (très fiable pour la zone France)
-URL_API = "https://api.aviation-donnees.fr/v1/notams/LFRR"
+# Récupération des secrets GitHub
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def envoyer_telegram(message):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
-    requests.post(url, data=payload)
-
-def verifier_notam():
     try:
-        response = requests.get(URL_API)
+        requests.post(url, data=payload)
+    except Exception as e:
+        print(f"Erreur envoi Telegram : {e}")
+
+def verifier_r147():
+    # Source de données publique (FIR Paris - LFRR)
+    # On utilise un service qui reformate les données du SIA pour les rendre lisibles par un script
+    url = "https://api.aviation-edge.com/api/public/notam?region=LFRR"
+    
+    try:
+        print("Vérification des NOTAM en cours...")
+        response = requests.get(url)
+        # Si cette source est temporairement indisponible, on affiche l'erreur
+        if response.status_code != 200:
+            print("Source indisponible pour le moment.")
+            return
+
         notams = response.json()
+        trouve = False
         
         for n in notams:
-            texte = n.get('text', '').upper()
+            # On cherche dans le texte du NOTAM (souvent dans le champ 'itemE' ou 'text')
+            texte = str(n).upper()
             
-            # Filtrage spécifique sur la R147
             if "R147" in texte or "R 147" in texte:
-                msg = (
-                    f"📢 *ALERTE ZONE R147*\n"
-                    f"━━━━━━━━━━━━━━━\n"
-                    f"🗓 *Début :* {n.get('start_date')}\n"
-                    f"🏁 *Fin :* {n.get('end_date')}\n"
-                    f"📝 *Info :* {texte[:200]}..." # On coupe si c'est trop long
+                trouve = True
+                # On essaie d'extraire le texte propre si disponible
+                contenu = n.get('itemE', 'Détail non disponible (voir SIA)')
+                alerte = (
+                    f"⚠️ *ALERTE ZONE R147 - ATLANTIC AIR PARK*\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"Un NOTAM concernant la R147 a été détecté.\n\n"
+                    f"📝 *Extrait :*\n_{contenu[:300]}..._\n\n"
+                    f"🔗 Vérifiez sur SOFIA-Briefing pour confirmation."
                 )
-                envoyer_telegram(msg)
-                
+                envoyer_telegram(alerte)
+                print("Une alerte a été envoyée sur Telegram !")
+
+        if not trouve:
+            print("RAS : Pas de mention de la R147 pour le moment.")
+
     except Exception as e:
-        print(f"Erreur : {e}")
+        print(f"Erreur lors de la vérification : {e}")
 
 if __name__ == "__main__":
-    verifier_notam()
+    verifier_r147()
