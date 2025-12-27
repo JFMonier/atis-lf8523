@@ -1,13 +1,13 @@
 import requests
 import os
+import re
 
 # Secrets GitHub
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-# --- CONFIGURATION MANUELLE DES INFOS TERRAIN ---
-# Modifie ces textes entre les guillemets selon les besoins du moment
-INFOS_LOCALES = "Piste en herbe fermée (terrain gras). Péril aviaire signalé en bout de piste 24."
+# --- CONFIGURATION MANUELLE LF8523 ---
+INFOS_LOCALES = "Piste 08/26 : Piste en herbe FERMÉE cause travaux. Prudence péril aviaire."
 
 def envoyer_telegram(message):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -15,53 +15,64 @@ def envoyer_telegram(message):
     requests.post(url, data=payload)
 
 def obtenir_metar(icao):
-    # Source gratuite pour les METAR
+    # Source NOAA (Météo officielle)
     url = f"https://tgftp.nws.noaa.gov/data/observations/metar/stations/{icao}.TXT"
     try:
-        response = requests.get(url)
-        line = response.text.split('\n')[1]
-        # Extraction simplifiée du QNH (ex: Q1018)
-        qnh = int(line.split('Q')[1][:4])
-        # Extraction Température/Point rosée (ex: 12/08)
-        temp_part = line.split(' ')[-3]
-        temp = int(temp_part.split('/')[0].replace('M', '-'))
-        dew = int(temp_part.split('/')[1].replace('M', '-'))
+        response = requests.get(url, timeout=10)
+        if response.status_code != 200: return None
+        
+        metar = response.text.split('\n')[1]
+        
+        # Extraction QNH (recherche Q suivi de 4 chiffres)
+        qnh_match = re.search(r'Q(\d{4})', metar)
+        qnh = int(qnh_match.group(1)) if qnh_match else None
+        
+        # Extraction Température (ex: 12/08 ou M01/M03)
+        temp_match = re.search(r' (M?\d{2})/(M?\d{2}) ', metar)
+        if temp_match:
+            temp = int(temp_match.group(1).replace('M', '-'))
+            dew = int(temp_match.group(2).replace('M', '-'))
+        else:
+            temp, dew = None, None
+            
         return {"qnh": qnh, "temp": temp, "dew": dew}
     except:
         return None
 
 def executer_veille():
-    rapport = "📡 *BULLETIN AUTOMATIQUE LF038*\n━━━━━━━━━━━━━━━━━━\n\n"
+    rapport = f"🛩 *BULLETIN AUTOMATIQUE LF8523*\n(Atlantic Air Park)\n━━━━━━━━━━━━━━━━━━\n\n"
     
-    # 1. MÉTÉO MOYENNÉE
-    m_lfbh = obtenir_metar("LFBH")
-    m_lfri = obtenir_metar("LFRI")
+    # 1. MÉTÉO MOYENNÉE (LFBH La Rochelle / LFRI La Roche-sur-Yon)
+    m1 = obtenir_metar("LFBH")
+    m2 = obtenir_metar("LFRI")
     
-    if m_lfbh and m_lfri:
-        qnh_moy = (m_lfbh['qnh'] + m_lfri['qnh']) / 2
-        temp_moy = (m_lfbh['temp'] + m_lfri['temp']) / 2
-        dew_moy = (m_lfbh['dew'] + m_lfri['dew']) / 2
-        rapport += f"🌤 *Météo (Moyenne LFBH/LFRI) :*\n• QNH : {qnh_moy:.0f} hPa\n• Temp : {temp_moy:.1f}°C\n• Rosée : {dew_moy:.1f}°C\n\n"
+    if m1 and m2:
+        q_moy = (m1['qnh'] + m2['qnh']) / 2
+        t_moy = (m1['temp'] + m2['temp']) / 2
+        d_moy = (m1['dew'] + m2['dew']) / 2
+        rapport += f"🌤 *Météo (Moyenne LFBH/LFRI) :*\n• QNH : {q_moy:.0f} hPa\n• Temp : {t_moy:.1f}°C\n• Rosée : {d_moy:.1f}°C\n\n"
+    else:
+        rapport += "⚠️ *Météo :* Service temporairement indisponible.\n\n"
     
-    # 2. INFOS TERRAIN (Tes messages)
-    rapport += f"⚠️ *Infos Atlantic Air Park :*\n{INFOS_LOCALES}\n\n"
+    # 2. INFOS TERRAIN
+    rapport += f"🚧 *Infos Terrain :*\n{INFOS_LOCALES}\n\n"
     
-    # 3. SURVEILLANCE R147
+    # 3. SURVEILLANCE ZONE R147
+    # Utilisation d'une source alternative de secours pour les NOTAM
     url_notam = "https://api.aviation-edge.com/api/public/notam?region=LFRR"
     try:
-        res = requests.get(url_notam)
-        notams = res.json()
-        r147_detectee = False
-        for n in notams:
-            if "R147" in str(n).upper():
-                r147_detectee = True
-                rapport += f"🚫 *ZONE R147 ACTIVE !*\nConsultez le détail sur le SIA.\n"
-                break
-        if not r147_detectee:
-            rapport += "✅ Zone R147 non signalée active.\n"
+        res = requests.get(url_notam, timeout=15)
+        r147_active = "NON"
+        if res.status_code == 200:
+            notams = res.text.upper()
+            if "R147" in notams:
+                r147_active = "⚠️ OUI (Active/Signalée)"
+        
+        rapport += f"🚫 *Zone R147 :* {r147_active}\n"
     except:
-        rapport += "❌ Erreur scan NOTAM.\n"
+        rapport += "🚫 *Zone R147 :* Scan impossible (Vérifiez SIA).\n"
 
+    rapport += "\n_Généré automatiquement par le système Atlantic Park._"
     envoyer_telegram(rapport)
 
 if __name__ == "__main__":
