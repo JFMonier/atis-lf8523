@@ -8,7 +8,7 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # --- TEXTES FIXES (Phonétique pour l'audio) ---
-INFOS_FR = "Piste zéro huit, deux six en herbe fermée cause travaux. Prudence. Péril aviaire."
+INFOS_FR = "Piste zéro huit, vingt six en herbe fermée cause travaux. Prudence. Péril aviaire."
 INFOS_EN = "Grass runway zero eight, two six, closed due to works. Caution. Bird hazard."
 
 def obtenir_metar(icao):
