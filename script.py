@@ -49,7 +49,7 @@ def executer_veille():
     # --- AUDIO ANGLAIS (Accent US) ---
     vocal_en = (f"Atlantic Air Park. Observation at {m1['heure_metar'].replace(':', ' ')} UTC. "
                 f"Wind {wd:03.0f} degrees {ws:.0f} knots. Temperature {t_moy:.0f} degrees "
-                f"Dew point {d_moy:.0f} degrees. Q N H, {q_moy:.0f}. {INFOS_EN}")
+                f"Dew point {d_moy:.0f} degrees. QNH {q_moy:.0f}. {INFOS_EN}")
 
     # Fusion des voix
     tts_fr = gTTS(text=vocal_fr, lang='fr')
