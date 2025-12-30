@@ -9,7 +9,6 @@ import time
 STATIONS = ["LFBH", "LFRI"]
 
 def formater_chiffre_fr(n):
-    """Gère la diction spécifique : 'unité' pour 1 et suppression du zéro initial."""
     n_str = str(n).replace('-', '')
     if n_str == "1": return "unité"
     return n_str.lstrip('0') if len(n_str) > 1 and n_str.startswith('0') else n_str
@@ -17,7 +16,6 @@ def formater_chiffre_fr(n):
 def obtenir_donnees_moyennes():
     temps, rosees, qnhs, vents_dir, vents_spd, rafales = [], [], [], [], [], []
     h_tele = "--:--"
-
     for icao in STATIONS:
         url = f"https://tgftp.nws.noaa.gov/data/observations/metar/stations/{icao}.TXT"
         try:
@@ -26,57 +24,32 @@ def obtenir_donnees_moyennes():
                 lines = res.text.split('\n')
                 if len(lines) < 2: continue
                 metar = lines[1]
-                
-                # Heure (UTC)
                 time_match = re.search(r' (\d{2})(\d{2})(\d{2})Z', metar)
-                if time_match:
-                    h_tele = f"{time_match.group(2)}:{time_match.group(3)}"
-
-                # Temp/Rosée
+                if time_match: h_tele = f"{time_match.group(2)}:{time_match.group(3)}"
                 tr_match = re.search(r' (M?\d{2})/(M?\d{2}) ', metar)
                 if tr_match:
                     temps.append(int(tr_match.group(1).replace('M', '-')))
                     rosees.append(int(tr_match.group(2).replace('M', '-')))
-
-                # QNH
                 q_match = re.search(r'Q(\d{4})', metar)
                 if q_match: qnhs.append(int(q_match.group(1)))
-
-                # Vent et Rafales
                 w_match = re.search(r' (\d{3})(\d{2})(G\d{2})?KT', metar)
                 if w_match:
                     vents_dir.append(int(w_match.group(1)))
                     vents_spd.append(int(w_match.group(2)))
-                    if w_match.group(3):
-                        rafales.append(int(w_match.group(3).replace('G', '')))
+                    if w_match.group(3): rafales.append(int(w_match.group(3).replace('G', '')))
         except: continue
 
     if not qnhs: return None
-
-    # Moyennes
-    m_t = round(sum(temps) / len(temps))
-    m_r = round(sum(rosees) / len(rosees))
-    m_q = round(sum(qnhs) / len(qnhs))
-    m_wd = round(sum(vents_dir) / len(vents_dir))
-    m_ws = round(sum(vents_spd) / len(vents_spd))
-    
-    # Rafale max si présente
+    m_t, m_r, m_q = round(sum(temps)/len(temps)), round(sum(rosees)/len(rosees)), round(sum(qnhs)/len(qnhs))
+    m_wd, m_ws = round(sum(vents_dir)/len(vents_dir)), round(sum(vents_spd)/len(vents_spd))
     max_g = max(rafales) if rafales else None
-
-    # Audio QNH
     q_str = str(m_q)
     q_audio_fr = " ".join([formater_chiffre_fr(c) for c in list(q_str)])
-    
-    # Audio Vent
     wd_en = " ".join(list(str(m_wd).zfill(3))).replace('0','zero').replace('1','one')
-    v_fr = f"vent {m_wd} degrés, {m_ws} nœuds"
-    v_en = f"wind {wd_en} degrees, {m_ws} knots"
+    v_fr, v_en = f"vent {m_wd} degrés, {m_ws} nœuds", f"wind {wd_en} degrees, {m_ws} knots"
     v_visu = f"{str(m_wd).zfill(3)} / {m_ws}"
-    
     if max_g and max_g > m_ws:
-        v_fr += f", avec rafales à {max_g} nœuds"
-        v_en += f", gusting {max_g} knots"
-        v_visu += f"G{max_g}"
+        v_fr += f", avec rafales à {max_g} nœuds"; v_en += f", gusting {max_g} knots"; v_visu += f"G{max_g}"
 
     return {
         "heure_metar": h_tele, "qnh": q_str, "q_audio_fr": q_audio_fr, "q_audio_en": " ".join(list(q_str)),
@@ -89,16 +62,18 @@ def obtenir_donnees_moyennes():
     }
 
 def scanner_notams():
-    resultats = {"R147": "pas d'information"}
+    # Initialisation des deux zones
+    status = {"R147": "pas d'information", "R45A": "pas d'information"}
     try:
         res = requests.get("https://api.allorigins.win/get?url=" + requests.utils.quote("https://www.notams.faa.gov/common/icao/LFRR.html"), timeout=15)
         texte = res.text.upper()
-        if "R147" in texte:
-            horaires = re.findall(r"R147.*?(\d{4}.*?TO.*?\d{4})", texte)
-            if horaires:
-                resultats["R147"] = f"active de {horaires[0].replace('TO', 'à')}"
+        
+        for zone in ["R147", "R45A"]:
+            match = re.search(f"{zone}.*?(\\d{{4}}.*?TO.*?\\d{{4}})", texte)
+            if match:
+                status[zone] = f"active de {match.group(1).replace('TO', 'à')}"
     except: pass
-    return resultats
+    return status
 
 async def generer_audio(vocal_fr, vocal_en):
     await edge_tts.Communicate(vocal_fr, "fr-FR-HenriNeural", rate="+5%").save("fr.mp3")
@@ -114,21 +89,24 @@ async def executer_veille():
     notams = scanner_notams()
     if not m: return
 
-    # AUDIO
+    # AUDIO (On mentionne la R147 en priorité, et la R45A si elle est active pour le test)
+    notam_audio = f"Zone R 147 : {notams['R147']}."
+    if "active" in notams['R45A']:
+        notam_audio += f" Notez également zone R 45 alpha {notams['R45A']}."
+
     txt_fr = (f"Atlantic Air Park, observation de {m['heure_metar'].replace(':',' heures ')} UTC. "
               f"{m['w_audio_fr']}. Température {m['t_audio_fr']} degrés. Point de rosée {m['d_audio_fr']} degrés. "
               f"Q N H {m['q_audio_fr']} hectopascals. "
               f"Piste en herbe zéro huit vingt-six fermée cause travaux. Prudence. Péril aviaire. "
-              f"Zone R 147 : {notams['R147']}.")
+              f"{notam_audio}")
 
     txt_en = (f"Atlantic Air Park observation at {m['heure_metar'].replace(':',' ')} UTC. "
               f"{m['w_audio_en']}. Temperature {m['t_audio_en']} degrees. Dew point {m['d_audio_en']} degrees. "
               f"Q N H {m['q_audio_en']} hectopascals. Grass runway zero eight twenty-six closed due to works. Caution. Bird hazard. "
-              f"Military area Romeo one four seven: non information.")
+              f"Check NOTAM for military areas.")
 
     await generer_audio(txt_fr, txt_en)
 
-    # HTML
     ts = int(time.time())
     html_content = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ATIS LF8523</title>
@@ -156,8 +134,8 @@ async def executer_veille():
     </div>
     <div class="alert-section">
         <div class="alert-line">⚠️ Piste en herbe 08/26 fermée cause travaux</div>
-        <div class="alert-line">⚠️ Prudence / Péril aviaire</div>
         <div class="alert-line">⚠️ RTBA R147 : {notams['R147']}</div>
+        <div class="alert-line" style="color:#4dabff;">🔹 TEST R45A : {notams['R45A']}</div>
     </div>
     <div class="label" style="margin-bottom:10px;">Écouter l'audio (Bilingue)</div>
     <audio controls><source src="atis.mp3?v={ts}" type="audio/mpeg"></audio>
