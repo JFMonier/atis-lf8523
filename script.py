@@ -5,7 +5,14 @@ import asyncio
 import edge_tts
 
 # Configuration
-ICAO = "LFBH" # La Rochelle pour les METAR
+ICAO = "LFBH"
+
+def formater_chiffre_fr(n):
+    """Transforme 08 en 'zéro huit' et gère le 'unité' pour le QNH"""
+    n_str = str(n).replace('-', '')
+    if n_str == "1": return "unité"
+    # Supprime le zéro devant un chiffre seul (ex: 05 devient 5)
+    return n_str.lstrip('0') if len(n_str) > 1 and n_str.startswith('0') else n_str
 
 def obtenir_metar(icao):
     url = f"https://tgftp.nws.noaa.gov/data/observations/metar/stations/{icao}.TXT"
@@ -13,68 +20,69 @@ def obtenir_metar(icao):
         response = requests.get(url, timeout=10)
         metar = response.text.split('\n')[1]
         
-        # --- HEURE ---
         time_match = re.search(r' (\d{2})(\d{2})(\d{2})Z', metar)
         h_tele = f"{time_match.group(2)}:{time_match.group(3)}"
         
-        # --- VENT (Gestion CALM, VRB et GUSTS) ---
-        w_dir_txt, w_spd_txt = "000", "0"
+        # --- VENT ---
+        w_dir_visu, w_spd_visu = "000", "0"
         w_audio_fr, w_audio_en = "", ""
 
         if "00000KT" in metar:
-            w_dir_txt, w_spd_txt = "CALME", "0"
+            w_dir_visu, w_spd_visu = "CALME", "0"
             w_audio_fr, w_audio_en = "vent calme", "wind calm"
         else:
             w_match = re.search(r' ([A-Z0-9]{3})(\d{2})(G\d{2})?KT', metar)
             if w_match:
-                dir_raw = w_match.group(1)
-                spd_raw = w_match.group(2).lstrip('0') or "0"
-                gust_raw = w_match.group(3)
-                
-                if dir_raw == "VRB":
-                    w_dir_txt, w_audio_fr, w_audio_en = "VRB", "vent variable", "wind variable"
+                d, s, g = w_match.group(1), w_match.group(2), w_match.group(3)
+                w_dir_visu = d
+                if d == "VRB":
+                    w_audio_fr, w_audio_en = "vent variable", "wind variable"
                 else:
-                    w_dir_txt = dir_raw
-                    w_audio_fr, w_audio_en = f"vent {dir_raw} degrés", f"wind {dir_raw} degrees"
+                    # Anglais : on épelle "zero seven zero"
+                    d_en = " ".join(list(d)).replace('0', 'zero').replace('1', 'one')
+                    w_audio_fr = f"vent {d} degrés"
+                    w_audio_en = f"wind {d_en} degrees"
                 
-                if gust_raw:
-                    gust_spd = gust_raw.replace('G', '').lstrip('0')
-                    w_spd_txt = f"{spd_raw}-{gust_spd}"
-                    w_audio_fr += f", {spd_raw} nœuds, rafales {gust_spd} nœuds"
-                    w_audio_en += f", {spd_raw} knots, gusts {gust_spd} knots"
-                else:
-                    w_spd_txt = spd_raw
-                    w_audio_fr += f", {spd_raw} nœuds"
-                    w_audio_en += f", {spd_raw} knots"
+                spd = s.lstrip('0') or "0"
+                w_spd_visu = s
+                w_audio_fr += f", {spd} nœuds"
+                w_audio_en += f", {spd} knots"
+                
+                if g:
+                    gst = g.replace('G', '').lstrip('0')
+                    w_spd_visu += f"G{gst}"
+                    w_audio_fr += f", rafales {gst} nœuds"
+                    w_audio_en += f", gusts {gst} knots"
 
-        # --- QNH / TEMP / DEW ---
+        # --- QNH / TEMP ---
         q_match = re.search(r'Q(\d{4})', metar)
         q_val = q_match.group(1) if q_match else "1013"
+        # Préparation QNH FR : "unité, zéro, unité, trois"
+        q_fr = ", ".join([formater_chiffre_fr(c) for c in list(q_val)])
+        # Préparation QNH EN : plus rapide
+        q_en = " ".join(list(q_val))
+
         t_match = re.search(r' (M?\d{2})/(M?\d{2}) ', metar)
-        temp = t_match.group(1).replace('M', '-')
-        dew = t_match.group(2).replace('M', '-')
+        t_raw, d_raw = t_match.group(1), t_match.group(2)
         
+        def dict_temp(val, lang):
+            neg = "moins " if "M" in val and lang=="fr" else "minus " if "M" in val else ""
+            num = val.replace('M', '').lstrip('0') or "0"
+            return f"{neg}{num}"
+
         return {
-            "heure_metar": h_tele, "qnh": q_val, "q_audio": ", ".join(list(q_val)),
-            "temp": temp, "dew": dew, "w_dir_visu": w_dir_txt, "w_spd_visu": w_spd_txt,
+            "heure_metar": h_tele, "qnh": q_val, "q_audio_fr": q_fr, "q_audio_en": q_en,
+            "temp_visu": t_raw.replace('M', '-'), "dew_visu": d_raw.replace('M', '-'),
+            "t_audio_fr": dict_temp(t_raw, "fr"), "d_audio_fr": dict_temp(d_raw, "fr"),
+            "t_audio_en": dict_temp(t_raw, "en"), "d_audio_en": dict_temp(d_raw, "en"),
+            "w_dir_visu": w_dir_visu, "w_spd_visu": w_spd_visu,
             "w_audio_fr": w_audio_fr, "w_audio_en": w_audio_en
         }
     except: return None
 
-def scanner_notams():
-    resultats = {"R147": "Pas d'info"}
-    try:
-        res = requests.get("https://api.allorigins.win/get?url=" + requests.utils.quote("https://www.notams.faa.gov/common/icao/LFRR.html"), timeout=15)
-        texte = res.text.upper()
-        if "R147" in texte:
-            horaires = re.findall(r"R147.*?(\d{4}.*?TO.*?\d{4})", texte)
-            resultats["R147"] = f"ACTIVE de {horaires[0].replace('TO', 'à')}" if horaires else "ACTIVE (voir NOTAM)"
-    except: pass
-    return resultats
-
 async def generer_audio(vocal_fr, vocal_en):
-    await edge_tts.Communicate(vocal_fr, "fr-FR-HenriNeural").save("fr.mp3")
-    await edge_tts.Communicate(vocal_en, "en-GB-ThomasNeural").save("en.mp3")
+    await edge_tts.Communicate(vocal_fr, "fr-FR-HenriNeural", rate="+5%").save("fr.mp3")
+    await edge_tts.Communicate(vocal_en, "en-GB-ThomasNeural", rate="+10%").save("en.mp3")
     with open("atis.mp3", "wb") as f:
         for fname in ["fr.mp3", "en.mp3"]:
             with open(fname, "rb") as fd: f.write(fd.read())
@@ -83,24 +91,25 @@ async def generer_audio(vocal_fr, vocal_en):
 
 async def executer_veille():
     m = obtenir_metar(ICAO)
-    notams = scanner_notams()
     if not m: return
 
-    # --- AUDIO ---
-    txt_fr = (f"Atlantic Air Park. Observation de {m['heure_metar'].replace(':',' heures ')} UTC. "
-              f"{m['w_audio_fr']}. Température {m['temp']} degrés. Point de rosée {m['dew']} degrés. "
-              f"Q N H {m['q_audio']}. Piste en herbe zéro huit, deux six fermée. Prudence. Péril aviaire. "
-              f"Zone R 147 : {notams['R147']}.")
+    # --- AUDIO FR ---
+    # Pas de virgule après Atlantic Air Park pour supprimer la pause
+    txt_fr = (f"Atlantic Air Park observation de {m['heure_metar'].replace(':',' heures ')} UTC. "
+              f"{m['w_audio_fr']}. Température {m['t_audio_fr']} degrés. Point de rosée {m['d_audio_fr']} degrés. "
+              f"Q N H {m['q_audio_fr']}. Piste en herbe zéro huit vingt-six fermée. Prudence. Péril aviaire. "
+              f"Zone R 147 : non information.")
 
-    txt_en = (f"Atlantic Air Park. Observation at {m['heure_metar'].replace(':',' ')} UTC. "
-              f"{m['w_audio_en']}. Temperature {m['temp']} degrees. Dew point {m['dew']} degrees. "
-              f"Q N H {m['q_audio']}. Grass runway zero eight, two six, closed. Caution. Bird hazard. "
-              f"Zone R 147 : {notams['R147']}.")
+    # --- AUDIO EN ---
+    txt_en = (f"Atlantic Air Park observation at {m['heure_metar'].replace(':',' ')} UTC. "
+              f"{m['w_audio_en']}. Temperature {m['t_audio_en']} degrees. Dew point {m['d_audio_en']} degrees. "
+              f"Q N H {m['q_audio_en']} hectopascals. Grass runway zero eight twenty-six closed due to works. Caution. Bird hazard. "
+              f"Military area Romeo one four seven: non information.")
 
     await generer_audio(txt_fr, txt_en)
 
-    # --- HTML ---
-    remarques = ["Piste en herbe 08/26 fermée cause travaux", "Prudence", "Péril aviaire", f"RTBA R147 : {notams['R147']}"]
+    # --- HTML (Visuel) ---
+    remarques = ["Piste en herbe 08/26 fermée cause travaux", "Prudence", "Péril aviaire", "RTBA R147 : Pas d'info"]
     alertes_html = "".join([f'<div class="alert-line">⚠️ {r}</div>' for r in remarques])
 
     html_content = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
@@ -121,7 +130,7 @@ async def executer_veille():
     <div class="data-grid">
         <div class="data-item"><div class="label">Heure</div><div class="value">⌚ {m['heure_metar']}Z</div></div>
         <div class="data-item"><div class="label">Vent</div><div class="value">🌬 {m['w_dir_visu']} / {m['w_spd_visu']}kt</div></div>
-        <div class="data-item"><div class="label">Temp / Rosée</div><div class="value">🌡 {m['temp']}° / {m['dew']}°</div></div>
+        <div class="data-item"><div class="label">Temp / Rosée</div><div class="value">🌡 {m['temp_visu']}° / {m['dew_visu']}°</div></div>
         <div class="data-item"><div class="label">QNH</div><div class="value">💎 {m['qnh']} hPa</div></div>
     </div>
     <div class="alert-section">{alertes_html}</div>
