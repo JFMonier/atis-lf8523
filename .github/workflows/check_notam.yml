@@ -22,7 +22,7 @@ jobs:
           python-version: '3.9'
 
       - name: Install dependencies
-        run: pip install requests gtts
+        run: pip install requests edge-tts
 
       - name: Run script
         env:
