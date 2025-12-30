@@ -1,0 +1,20 @@
+name: Alerte NOTAM Soir
+on:
+  schedule:
+    - cron: '0 18 * * *'  # 18h00 UTC
+  workflow_dispatch:
+
+jobs:
+  alerte:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - run: pip install requests
+      - name: Run alerte script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python alerte_notam.py
