@@ -3,7 +3,7 @@
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background: #121212; color: #e0e0e0; }
         .card { background: #1e1e1e; padding: 25px; border-radius: 15px; max-width: 500px; margin: auto; border: 1px solid #333; }
-        h1 { color: #fff; margin-bottom: 5px; } .subtitle { color: #4dabff; font-weight: bold; margin-bottom: 25px; }
+        h1 { color: #fff; margin-bottom: 5px; } .subtitle { color: #4dabff; font-weight: bold; margin-bottom: 25px; text-transform: uppercase; }
         .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
         .data-item { background: #2a2a2a; padding: 15px; border-radius: 10px; border: 1px solid #3d3d3d; }
         .label { font-size: 0.75em; color: #888; text-transform: uppercase; }
@@ -14,12 +14,17 @@
     </style></head><body><div class="card">
     <h1>ATIS LF8523</h1><div class="subtitle">Atlantic Air Park</div>
     <div class="data-grid">
-        <div class="data-item"><div class="label">Heure</div><div class="value">⌚ 11:00Z</div></div>
-        <div class="data-item"><div class="label">Vent</div><div class="value">🌬 070 / 22kt</div></div>
+        <div class="data-item"><div class="label">Heure</div><div class="value">⌚ 11:30Z</div></div>
+        <div class="data-item"><div class="label">Vent</div><div class="value">🌬 060 / 19kt</div></div>
         <div class="data-item"><div class="label">Temp / Rosée</div><div class="value">🌡 04° / -00°</div></div>
         <div class="data-item"><div class="label">QNH</div><div class="value">💎 1025 hPa</div></div>
     </div>
-    <div class="alert-section"><div class="alert-line">⚠️ Piste en herbe 08/26 fermée cause travaux</div><div class="alert-line">⚠️ Prudence</div><div class="alert-line">⚠️ Péril aviaire</div><div class="alert-line">⚠️ RTBA R147 : Pas d'info</div></div>
+    <div class="alert-section">
+        <div class="alert-line">⚠️ Piste en herbe 08/26 fermée cause travaux</div>
+        <div class="alert-line">⚠️ Prudence</div>
+        <div class="alert-line">⚠️ Péril aviaire</div>
+        <div class="alert-line">⚠️ RTBA R147 : pas d'information</div>
+    </div>
     <div class="label" style="margin-bottom:10px;">Écouter l'audio</div>
     <audio controls autoplay><source src="atis.mp3" type="audio/mpeg"></audio>
     </div></body></html>
