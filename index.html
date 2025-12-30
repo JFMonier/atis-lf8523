@@ -1,13 +1,25 @@
 <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ATIS LF8523</title>
-    <style>body{font-family:sans-serif;text-align:center;padding:20px;background:#1a1a1a;color:white;}
-    .card{background:#2d2d2d;padding:30px;border-radius:20px;max-width:450px;margin:auto;border:1px solid #444;}
-    h1{color:#4dabff;} .data{font-size:1.4em;font-weight:bold;margin:15px 0;border-bottom:1px solid #444;}
-    audio{width:100%;margin-top:25px;filter:invert(100%);}</style></head>
-    <body><div class="card"><h1>LF8523 ATIS</h1><p>Atlantic Air Park</p>
-    <div class="data">⌚ 09:30 UTC</div>
-    <div class="data">🌬 050° / 14 kt</div>
-    <div class="data">🌡 0°C</div>
-    <div class="data">💎 QNH 1025 hPa</div>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #121212; color: #e0e0e0; }
+        .card { background: #1e1e1e; padding: 25px; border-radius: 15px; max-width: 500px; margin: auto; border: 1px solid #333; }
+        h1 { color: #fff; margin-bottom: 5px; } .subtitle { color: #4dabff; font-weight: bold; margin-bottom: 25px; }
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .data-item { background: #2a2a2a; padding: 15px; border-radius: 10px; border: 1px solid #3d3d3d; }
+        .label { font-size: 0.75em; color: #888; text-transform: uppercase; }
+        .value { font-size: 1.2em; font-weight: bold; color: #fff; margin-top:5px; }
+        .alert-section { text-align: left; background: rgba(255, 204, 0, 0.1); border-left: 4px solid #ffcc00; padding: 15px; margin-bottom: 25px; }
+        .alert-line { color: #ffcc00; font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
+        audio { width: 100%; filter: invert(90%); }
+    </style></head><body><div class="card">
+    <h1>ATIS LF8523</h1><div class="subtitle">Atlantic Air Park</div>
+    <div class="data-grid">
+        <div class="data-item"><div class="label">Heure</div><div class="value">⌚ 10:30Z</div></div>
+        <div class="data-item"><div class="label">Vent</div><div class="value">🌬 070 / 19kt</div></div>
+        <div class="data-item"><div class="label">Temp / Rosée</div><div class="value">🌡 03° / -01°</div></div>
+        <div class="data-item"><div class="label">QNH</div><div class="value">💎 1025 hPa</div></div>
+    </div>
+    <div class="alert-section"><div class="alert-line">⚠️ Piste en herbe 08/26 fermée cause travaux</div><div class="alert-line">⚠️ Prudence</div><div class="alert-line">⚠️ Péril aviaire</div><div class="alert-line">⚠️ RTBA R147 : Pas d'info</div></div>
+    <div class="label" style="margin-bottom:10px;">Écouter l'audio</div>
     <audio controls autoplay><source src="atis.mp3" type="audio/mpeg"></audio>
-    <p style="color:#ffcc00; font-weight:bold;">Piste en herbe zéro huit, deux six fermée cause travaux. Prudence. Péril aviaire.</p></div></body></html>
+    </div></body></html>
