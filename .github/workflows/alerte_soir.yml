@@ -9,21 +9,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Important pour permettre le rebase
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-      - run: pip install requests
+
+      - name: Install dependencies
+        run: pip install requests edge-tts  # Ajout de edge-tts si ton script alerte génère aussi l'audio
+
       - name: Run alerte script
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python alerte_notam.py
 
-    - name: Commit and Push
+      - name: Commit and Push
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add index.html atis.mp3
-          git commit -m "Mise à jour ATIS" || exit 0
+          # On ajoute les fichiers potentiellement modifiés
+          git add index.html atis.mp3 2>/dev/null || echo "Pas de fichiers à ajouter"
+          # On commit seulement s'il y a des changements
+          git commit -m "Mise à jour ATIS via Alerte Soir" || exit 0
+          # La sécurité pour éviter l'erreur "rejected"
           git pull --rebase origin main
           git push origin main
