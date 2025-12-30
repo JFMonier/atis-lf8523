@@ -144,7 +144,7 @@ async def executer_veille():
         <div class="alert-line">⚠️ RTBA R147 : {notams['R147']}</div>
     </div>
     <div class="label" style="margin-bottom:10px;">Écouter l'audio (Bilingue)</div>
-    <audio controls autoplay><source src="atis.mp3" type="audio/mpeg"></audio>
+    <audio controls><source src="atis.mp3" type="audio/mpeg"></audio>
     <button class="btn-refresh" onclick="window.location.reload()">🔄 Actualiser la page</button>
     <div class="disclaimer">
         Valeurs issues des METAR LFBH (La Rochelle) et LFRI (La Roche-sur-Yon) moyennées. Les rafales correspondent à la valeur maximale observée. 
