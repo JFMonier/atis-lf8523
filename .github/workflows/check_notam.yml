@@ -1,7 +1,7 @@
 name: Update ATIS WebPage
 on:
   schedule:
-    - cron: '30 * * * *'
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -14,10 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # Mis à jour de v3 à v4
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Important pour autoriser le push
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # Mis à jour de v4 à v5
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
@@ -28,18 +30,22 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python script.py
 
-          - name: Commit and Push changes
+      - name: Commit and Push changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add index.html atis.mp3
-          # Le "|| exit 0" évite que le script plante s'il n'y a aucun changement
-          git commit -m "Mise à jour automatique de l'ATIS" || exit 0
-          # On utilise le token pour s'authentifier lors du push
+          git commit -m "Mise à jour automatique ATIS" || exit 0
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
-        run: python script.py
 
-      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
