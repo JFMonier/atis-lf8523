@@ -27,10 +27,12 @@ jobs:
       - name: Install dependencies
         run: pip install requests edge-tts
 
-      - name: Run script
+      - name: Run ATIS script
+        # On regroupe tous les secrets ici pour le lancement du script
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ATIS_REMARQUES: ${{ secrets.ATIS_REMARQUES }}
         run: python script.py
 
       - name: Commit and Push
@@ -41,14 +43,11 @@ jobs:
           git commit -m "Mise à jour ATIS" || exit 0
           git pull --rebase origin main
           git push origin main
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
-      - name: Run ATIS script
-        env:
-          ATIS_REMARQUES: ${{ secrets.ATIS_REMARQUES }}
-        run: python script.py
 
       - name: Deploy to GitHub Pages
         id: deployment
