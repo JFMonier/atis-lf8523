@@ -5,7 +5,14 @@ import asyncio
 import edge_tts
 import time
 
-# Configuration
+# =================================================================
+# MODE D'EMPLOI DU SECRET "ATIS_REMARQUES" SUR GITHUB :
+# Pour ajouter des remarques, écrivez-les dans le secret ainsi :
+# Ligne FR 1 | Ligne FR 2 :: Line EN 1 | Line EN 2
+# Le "::" sépare le Français de l'Anglais.
+# Le "|" sépare les lignes (sauts de ligne).
+# =================================================================
+
 STATIONS = ["LFBH", "LFRI"]
 
 def formater_chiffre_fr(n):
@@ -87,27 +94,37 @@ async def executer_veille():
     notams = scanner_notams()
     if not m: return
 
-    # RÉCUPÉRATION DES REMARQUES DEPUIS GITHUB
-    remarques_raw = os.getenv("ATIS_REMARQUES", "Piste en herbe 08/26 fermée cause travaux | Prudence / Péril aviaire")
-    liste_remarques = [r.strip() for r in remarques_raw.split("|")]
+    # RÉCUPÉRATION ET DÉCOUPAGE FR / EN
+    remarques_raw = os.getenv("ATIS_REMARQUES", "Piste en herbe 08/26 fermée cause travaux | Prudence :: Grass runway 08/26 closed due to works | Caution")
     
-    html_remarques = "".join([f'<div class="alert-line">⚠️ {r}</div>' for r in liste_remarques])
-    audio_remarques = ". ".join(liste_remarques) + "."
+    if "::" in remarques_raw:
+        partie_fr, partie_en = remarques_raw.split("::")
+    else:
+        partie_fr, partie_en = remarques_raw, "Caution / Bird hazard"
 
-    # AUDIO
-    notam_audio = f"Zone R 147 : {notams['R147']}."
+    liste_fr = [r.strip() for r in partie_fr.split("|")]
+    liste_en = [r.strip() for r in partie_en.split("|")]
+    
+    html_remarques = "".join([f'<div class="alert-line">⚠️ {r}</div>' for r in liste_fr])
+    audio_remarques_fr = ". ".join(liste_fr) + "."
+    audio_remarques_en = ". ".join(liste_en) + "."
+
+    # AUDIO FR
+    notam_audio_fr = f"Zone R 147 : {notams['R147']}."
     if "active" in notams['R45A']:
-        notam_audio += f" Notez également zone R 45 alpha {notams['R45A']}."
+        notam_audio_fr += f" Notez également zone R 45 alpha {notams['R45A']}."
 
     txt_fr = (f"Atlantic Air Park, observation de {m['heure_metar'].replace(':',' heures ')} UTC. "
               f"{m['w_audio_fr']}. Température {m['t_audio_fr']} degrés. Point de rosée {m['d_audio_fr']} degrés. "
               f"Q N H {m['q_audio_fr']} hectopascals. "
-              f"{audio_remarques} "
-              f"{notam_audio}")
+              f"{audio_remarques_fr} "
+              f"{notam_audio_fr}")
 
+    # AUDIO EN
     txt_en = (f"Atlantic Air Park observation at {m['heure_metar'].replace(':',' ')} UTC. "
               f"{m['w_audio_en']}. Temperature {m['t_audio_en']} degrees. Dew point {m['d_audio_en']} degrees. "
-              f"Q N H {m['q_audio_en']} hectopascals. Caution. Bird hazard. "
+              f"Q N H {m['q_audio_en']} hectopascals. "
+              f"{audio_remarques_en} "
               f"Check NOTAM for military areas.")
 
     await generer_audio(txt_fr, txt_en)
@@ -146,8 +163,7 @@ async def executer_veille():
     <audio controls><source src="atis.mp3?v={ts}" type="audio/mpeg"></audio>
     <br><button class="btn-refresh" onclick="window.location.replace(window.location.pathname + '?refresh=' + Date.now())">🔄 Actualiser les données</button>
     <div class="disclaimer">
-        Valeurs issues des METAR LFBH (La Rochelle) et LFRI (La Roche-sur-Yon) moyennées. Les rafales correspondent à la valeur maximale observée.<br><br>
-        Ce service est une aide à l'information. Atlantic Air Park ne saurait être tenu responsable en cas d'erreur ou d'omission. Seule la documentation officielle (SIA/Météo-France) fait foi.
+        Valeurs issues des METAR LFBH (La Rochelle) et LFRI (La Roche-sur-Yon) moyennées. Les rafales correspondent à la valeur maximale observée. Seule la documentation officielle fait foi.
     </div>
     </div></body></html>"""
 
