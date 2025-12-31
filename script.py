@@ -7,10 +7,9 @@ import time
 
 # =================================================================
 # MODE D'EMPLOI DU SECRET "ATIS_REMARQUES" SUR GITHUB :
-# Pour ajouter des remarques, écrivez-les dans le secret ainsi :
-# Ligne FR 1 | Ligne FR 2 :: Line EN 1 | Line EN 2
+# Format : Ligne FR 1 | Ligne FR 2 :: Line EN 1 | Line EN 2
 # Le "::" sépare le Français de l'Anglais.
-# Le "|" sépare les lignes (sauts de ligne).
+# Le "|" (Option + Maj + L sur Mac) sépare les lignes.
 # =================================================================
 
 STATIONS = ["LFBH", "LFRI"]
@@ -131,11 +130,20 @@ async def executer_veille():
 
     ts = int(time.time())
     html_content = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ATIS LF8523</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ATIS LF8523</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ATIS LF8523">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+
     <style>
-        body {{ font-family: sans-serif; text-align: center; padding: 20px; background: #121212; color: #e0e0e0; }}
-        .card {{ background: #1e1e1e; padding: 25px; border-radius: 15px; max-width: 500px; margin: auto; border: 1px solid #333; }}
-        h1 {{ color: #fff; margin-bottom: 5px; }} .subtitle {{ color: #4dabff; font-weight: bold; margin-bottom: 25px; text-transform: uppercase; }}
+        body {{ font-family: sans-serif; text-align: center; padding: 20px; background: #121212; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }}
+        .card {{ background: #1e1e1e; padding: 25px; border-radius: 15px; max-width: 500px; width: 90%; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }}
+        h1 {{ color: #fff; margin: 0 0 5px 0; font-size: 1.8em; }} 
+        .subtitle {{ color: #4dabff; font-weight: bold; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; font-size: 0.9em; }}
         .data-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }}
         .data-item {{ background: #2a2a2a; padding: 15px; border-radius: 10px; border: 1px solid #3d3d3d; }}
         .label {{ font-size: 0.75em; color: #888; text-transform: uppercase; }}
@@ -143,7 +151,7 @@ async def executer_veille():
         .alert-section {{ text-align: left; background: rgba(255, 204, 0, 0.1); border-left: 4px solid #ffcc00; padding: 15px; margin-bottom: 25px; }}
         .alert-line {{ color: #ffcc00; font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }}
         audio {{ width: 100%; filter: invert(90%); margin-top: 10px; }}
-        .btn-refresh {{ background: #333; color: #ccc; border: 1px solid #444; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 20px; font-size: 0.85em; transition: 0.3s; font-weight: bold; }}
+        .btn-refresh {{ background: #333; color: #ccc; border: 1px solid #444; padding: 12px 20px; border-radius: 8px; cursor: pointer; margin-top: 20px; font-size: 0.9em; transition: 0.3s; font-weight: bold; width: 100%; }}
         .btn-refresh:hover {{ background: #444; color: #fff; border-color: #666; }}
         .disclaimer {{ font-size: 0.7em; color: #ccc; margin-top: 30px; line-height: 1.4; font-style: italic; border-top: 1px solid #333; padding-top: 15px; text-align: justify; }}
     </style></head><body><div class="card">
@@ -157,13 +165,13 @@ async def executer_veille():
     <div class="alert-section">
         {html_remarques}
         <div class="alert-line">⚠️ RTBA R147 : {notams['R147']}</div>
-        <div class="alert-line" style="color:#4dabff; font-size: 0.8em;">🔹 TEST R45A : {notams['R45A']}</div>
+        <div class="alert-line" style="color:#4dabff; font-size: 0.85em;">🔹 TEST R45A : {notams['R45A']}</div>
     </div>
     <div class="label" style="margin-bottom:10px;">Écouter l'audio (Bilingue)</div>
     <audio controls><source src="atis.mp3?v={ts}" type="audio/mpeg"></audio>
     <br><button class="btn-refresh" onclick="window.location.replace(window.location.pathname + '?refresh=' + Date.now())">🔄 Actualiser les données</button>
     <div class="disclaimer">
-        Valeurs issues des METAR LFBH (La Rochelle) et LFRI (La Roche-sur-Yon) moyennées. Les rafales correspondent à la valeur maximale observée. Seule la documentation officielle fait foi.
+        Valeurs issues des METAR LFBH et LFRI moyennées. Les rafales correspondent au max observé. Seule la documentation officielle (SIA) fait foi.
     </div>
     </div></body></html>"""
 
