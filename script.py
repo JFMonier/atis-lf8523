@@ -9,7 +9,7 @@ import time
 # MODE D'EMPLOI DU SECRET "ATIS_REMARQUES" SUR GITHUB :
 # Format : Ligne FR 1 | Ligne FR 2 :: Line EN 1 | Line EN 2
 # Le "::" sépare le Français de l'Anglais.
-# Le "|" (Option + Maj + L sur Mac) sépare les lignes.
+# Le "|" sépare les lignes (sauts de ligne).
 # =================================================================
 
 STATIONS = ["LFBH", "LFRI"]
@@ -30,32 +30,59 @@ def obtenir_donnees_moyennes():
                 lines = res.text.split('\n')
                 if len(lines) < 2: continue
                 metar = lines[1]
+                
+                # Heure
                 time_match = re.search(r' (\d{2})(\d{2})(\d{2})Z', metar)
                 if time_match: h_tele = f"{time_match.group(2)}:{time_match.group(3)}"
+                
+                # Température / Rosée
                 tr_match = re.search(r' (M?\d{2})/(M?\d{2}) ', metar)
                 if tr_match:
                     temps.append(int(tr_match.group(1).replace('M', '-')))
                     rosees.append(int(tr_match.group(2).replace('M', '-')))
+                
+                # QNH
                 q_match = re.search(r'Q(\d{4})', metar)
                 if q_match: qnhs.append(int(q_match.group(1)))
-                w_match = re.search(r' (\d{3})(\d{2})(G\d{2})?KT', metar)
+                
+                # VENT (Support VRB, directions fixes et rafales G)
+                w_match = re.search(r' ([0-9]{3}|VRB)(\d{2})(G\d{2})?KT', metar)
                 if w_match:
-                    vents_dir.append(int(w_match.group(1)))
-                    vents_spd.append(int(w_match.group(2)))
-                    if w_match.group(3): rafales.append(int(w_match.group(3).replace('G', '')))
+                    direction = w_match.group(1)
+                    vitesse = int(w_match.group(2))
+                    if direction != "VRB":
+                        vents_dir.append(int(direction))
+                    vents_spd.append(vitesse)
+                    if w_match.group(3):
+                        rafales.append(int(w_match.group(3).replace('G', '')))
         except: continue
 
-    if not qnhs: return None
-    m_t, m_r, m_q = round(sum(temps)/len(temps)), round(sum(rosees)/len(rosees)), round(sum(qnhs)/len(qnhs))
-    m_wd, m_ws = round(sum(vents_dir)/len(vents_dir)), round(sum(vents_spd)/len(vents_spd))
+    if not vents_spd or not qnhs: return None
+
+    m_t = round(sum(temps)/len(temps)) if temps else 0
+    m_r = round(sum(rosees)/len(rosees)) if rosees else 0
+    m_q = round(sum(qnhs)/len(qnhs))
+    m_wd = round(sum(vents_dir)/len(vents_dir)) if vents_dir else None
+    m_ws = round(sum(vents_spd)/len(vents_spd))
     max_g = max(rafales) if rafales else None
+
     q_str = str(m_q)
     q_audio_fr = " ".join([formater_chiffre_fr(c) for c in list(q_str)])
-    wd_en = " ".join(list(str(m_wd).zfill(3))).replace('0','zero').replace('1','one')
-    v_fr, v_en = f"vent {m_wd} degrés, {m_ws} nœuds", f"wind {wd_en} degrees, {m_ws} knots"
-    v_visu = f"{str(m_wd).zfill(3)} / {m_ws}"
+    
+    # Formatage Vent
+    if m_wd is None: # Cas VRB
+        v_fr, v_en = f"vent variable, {m_ws} nœuds", f"wind variable, {m_ws} knots"
+        v_visu = f"VRB / {m_ws}"
+    else:
+        wd_str = str(m_wd).zfill(3)
+        wd_en = " ".join(list(wd_str)).replace('0','zero').replace('1','one')
+        v_fr, v_en = f"vent {m_wd} degrés, {m_ws} nœuds", f"wind {wd_en} degrees, {m_ws} knots"
+        v_visu = f"{wd_str} / {m_ws}"
+
     if max_g and max_g > m_ws:
-        v_fr += f", avec rafales à {max_g} nœuds"; v_en += f", gusting {max_g} knots"; v_visu += f"G{max_g}"
+        v_fr += f", avec rafales à {max_g} nœuds"
+        v_en += f", gusting {max_g} knots"
+        v_visu += f"G{max_g}"
 
     return {
         "heure_metar": h_tele, "qnh": q_str, "q_audio_fr": q_audio_fr, "q_audio_en": " ".join(list(q_str)),
@@ -93,14 +120,9 @@ async def executer_veille():
     notams = scanner_notams()
     if not m: return
 
-    # RÉCUPÉRATION ET DÉCOUPAGE FR / EN
     remarques_raw = os.getenv("ATIS_REMARQUES", "Piste en herbe 08/26 fermée cause travaux | Prudence :: Grass runway 08/26 closed due to works | Caution")
+    partie_fr, partie_en = remarques_raw.split("::") if "::" in remarques_raw else (remarques_raw, "Caution")
     
-    if "::" in remarques_raw:
-        partie_fr, partie_en = remarques_raw.split("::")
-    else:
-        partie_fr, partie_en = remarques_raw, "Caution / Bird hazard"
-
     liste_fr = [r.strip() for r in partie_fr.split("|")]
     liste_en = [r.strip() for r in partie_en.split("|")]
     
@@ -110,36 +132,26 @@ async def executer_veille():
 
     # AUDIO FR
     notam_audio_fr = f"Zone R 147 : {notams['R147']}."
-    if "active" in notams['R45A']:
-        notam_audio_fr += f" Notez également zone R 45 alpha {notams['R45A']}."
+    if "active" in notams['R45A']: notam_audio_fr += f" Notez également zone R 45 alpha {notams['R45A']}."
 
     txt_fr = (f"Atlantic Air Park, observation de {m['heure_metar'].replace(':',' heures ')} UTC. "
               f"{m['w_audio_fr']}. Température {m['t_audio_fr']} degrés. Point de rosée {m['d_audio_fr']} degrés. "
-              f"Q N H {m['q_audio_fr']} hectopascals. "
-              f"{audio_remarques_fr} "
-              f"{notam_audio_fr}")
+              f"Q N H {m['q_audio_fr']} hectopascals. {audio_remarques_fr} {notam_audio_fr}")
 
     # AUDIO EN
     txt_en = (f"Atlantic Air Park observation at {m['heure_metar'].replace(':',' ')} UTC. "
               f"{m['w_audio_en']}. Temperature {m['t_audio_en']} degrees. Dew point {m['d_audio_en']} degrees. "
-              f"Q N H {m['q_audio_en']} hectopascals. "
-              f"{audio_remarques_en} "
-              f"Check NOTAM for military areas.")
+              f"Q N H {m['q_audio_en']} hectopascals. {audio_remarques_en} Check NOTAM for military areas.")
 
     await generer_audio(txt_fr, txt_en)
-
     ts = int(time.time())
+
     html_content = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ATIS LF8523</title>
-
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json?v=2">
     <link rel="apple-touch-icon" href="icon.png?v=2">
     <link rel="icon" type="image/png" href="icon.png?v=2">
-    <link rel="manifest" href="manifest.json?v=2">
-
-
     <style>
         body {{ font-family: sans-serif; text-align: center; padding: 20px; background: #121212; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }}
         .card {{ background: #1e1e1e; padding: 25px; border-radius: 15px; max-width: 500px; width: 90%; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }}
@@ -153,7 +165,6 @@ async def executer_veille():
         .alert-line {{ color: #ffcc00; font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }}
         audio {{ width: 100%; filter: invert(90%); margin-top: 10px; }}
         .btn-refresh {{ background: #333; color: #ccc; border: 1px solid #444; padding: 12px 20px; border-radius: 8px; cursor: pointer; margin-top: 20px; font-size: 0.9em; transition: 0.3s; font-weight: bold; width: 100%; }}
-        .btn-refresh:hover {{ background: #444; color: #fff; border-color: #666; }}
         .disclaimer {{ font-size: 0.7em; color: #ccc; margin-top: 30px; line-height: 1.4; font-style: italic; border-top: 1px solid #333; padding-top: 15px; text-align: justify; }}
     </style></head><body><div class="card">
     <h1>ATIS LF8523</h1><div class="subtitle">Atlantic Air Park</div>
@@ -168,12 +179,9 @@ async def executer_veille():
         <div class="alert-line">⚠️ RTBA R147 : {notams['R147']}</div>
         <div class="alert-line" style="color:#4dabff; font-size: 0.85em;">🔹 TEST R45A : {notams['R45A']}</div>
     </div>
-    <div class="label" style="margin-bottom:10px;">Écouter l'audio (Bilingue)</div>
     <audio controls><source src="atis.mp3?v={ts}" type="audio/mpeg"></audio>
-    <br><button class="btn-refresh" onclick="window.location.replace(window.location.pathname + '?refresh=' + Date.now())">🔄 Actualiser les données</button>
-    <div class="disclaimer">
-        Valeurs issues des METAR LFBH et LFRI moyennées. Les rafales correspondent au max observé. Seule la documentation officielle (SIA) fait foi.
-    </div>
+    <button class="btn-refresh" onclick="window.location.reload()">🔄 Actualiser les données</button>
+    <div class="disclaimer">Valeurs issues des moyennes LFBH/LFRI. Seule la doc officielle fait foi.</div>
     </div></body></html>"""
 
     with open("index.html", "w", encoding="utf-8") as f: f.write(html_content)
