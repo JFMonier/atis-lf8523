@@ -95,30 +95,38 @@ def obtenir_donnees_moyennes():
     }
 
 def scanner_notams():
+    # Liste des FIR couvrant la France (Brest, Paris, Reims, Marseille/Bordeaux)
+    firs = ["LFRR", "LFFF", "LFEE", "LFMM"]
     status = {"R147": "pas d'information", "R45A": "pas d'information"}
-    try:
-        # On interroge la source (LFRR pour l'Ouest, mais le flux contient souvent les RTBA nationales)
-        res = requests.get("https://api.allorigins.win/get?url=" + requests.utils.quote("https://www.notams.faa.gov/common/icao/LFRR.html"), timeout=15)
-        # On remplace les sauts de ligne par des espaces pour que la regex ne bloque pas
-        texte = res.text.upper().replace('\n', ' ').replace('\r', ' ')
+    
+    combined_text = ""
+    for fir in firs:
+        try:
+            # On récupère les NOTAMs de chaque FIR
+            res = requests.get(f"https://api.allorigins.win/get?url=" + requests.utils.quote(f"https://www.notams.faa.gov/common/icao/{fir}.html"), timeout=10)
+            if res.status_code == 200:
+                # Nettoyage global : passage en majuscule et suppression des retours à la ligne
+                combined_text += res.text.upper().replace('\n', ' ').replace('\r', ' ')
+        except:
+            continue
+
+    if not combined_text:
+        return status
+
+    for zone in ["R147", "R45A"]:
+        # Recherche robuste du format horaire (ex: 1430-1600) juste après le nom de la zone
+        # On accepte quelques caractères intermédiaires (espaces, "ACTIVE", etc.)
+        match = re.search(rf"{zone}.*?(\d{{4}}[-/]\d{{4}})", combined_text)
         
-        for zone in ["R147", "R45A"]:
-            # Cette regex cherche le nom de la zone, puis ignore le texte jusqu'à trouver 
-            # un format type 1430-1600:ACTIVE
-            match = re.search(rf"{zone}.*?(\d{{4}}-\d{{4}}:ACTIVE)", texte)
+        if match:
+            raw_time = match.group(1).replace('/', '-') # On uniformise le séparateur
+            h_debut = f"{raw_time[:2]}:{raw_time[2:4]}"
+            h_fin = f"{raw_time[-4:-2]}:{raw_time[-2:]}"
+            status[zone] = f"active de {h_debut} à {h_fin}"
+        elif zone in combined_text:
+            # Si le nom est trouvé mais pas l'horaire précis
+            status[zone] = "citée (vérifier SIA)"
             
-            if match:
-                # On extrait "1430-1600:ACTIVE" et on le rend plus lisible
-                info = match.group(1).replace(':ACTIVE', '').replace('-', ' à ')
-                # On ajoute un formattage pour que ce soit propre (ex: 14:30 à 16:00)
-                h_debut = info[:2] + ":" + info[2:4]
-                h_fin = info[-5:-3] + ":" + info[-2:]
-                status[zone] = f"active de {h_debut} à {h_fin}"
-            elif zone in texte:
-                # Sécurité : si la zone est citée mais que le format horaire diffère
-                status[zone] = "citée dans un NOTAM (vérifier SIA)"
-    except:
-        pass
     return status
 
 async def generer_audio(vocal_fr, vocal_en):
