@@ -4,6 +4,7 @@ import re
 import asyncio
 import edge_tts
 import time
+import json
 
 # =================================================================
 # MODE D'EMPLOI DU SECRET "ATIS_REMARQUES" SUR GITHUB :
@@ -95,15 +96,117 @@ def obtenir_donnees_moyennes():
     }
 
 def scanner_notams():
+    """
+    Scanner NOTAM amélioré avec sources multiples
+    """
     status = {"R147": "pas d'information", "R45A": "pas d'information"}
+    
+    # MÉTHODE 1 : Site AZBA du SIA (source officielle plannings)
     try:
-        res = requests.get("https://api.allorigins.win/get?url=" + requests.utils.quote("https://www.notams.faa.gov/common/icao/LFRR.html"), timeout=15)
-        texte = res.text.upper()
-        for zone in ["R147", "R45A"]:
-            match = re.search(f"{zone}.*?(\\d{{4}}.*?TO.*?\\d{{4}})", texte)
-            if match:
-                status[zone] = f"active de {match.group(1).replace('TO', 'à')}"
-    except: pass
+        url = "https://www.sia.aviation-civile.gouv.fr/schedules"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+        res = requests.get(url, headers=headers, timeout=15)
+        
+        if res.status_code == 200:
+            texte = res.text.upper()
+            
+            # Recherche R45A avec patterns multiples
+            patterns_r45a = [
+                r'R\s*45\s*A[^\d]*(\d{4})[^\d]*(\d{4})',  # R45A 0900 1100
+                r'R45A.*?(\d{2}:\d{2})[^\d]*(\d{2}:\d{2})',  # R45A 09:00 11:00
+            ]
+            
+            for pattern in patterns_r45a:
+                match = re.search(pattern, texte)
+                if match:
+                    h1, h2 = match.group(1), match.group(2)
+                    if ':' in h1:
+                        status["R45A"] = f"active {h1}-{h2}Z"
+                    else:
+                        status["R45A"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
+                    break
+            
+            # Recherche R147
+            patterns_r147 = [
+                r'R\s*147[^\d]*(\d{4})[^\d]*(\d{4})',
+                r'R147.*?(\d{2}:\d{2})[^\d]*(\d{2}:\d{2})',
+            ]
+            
+            for pattern in patterns_r147:
+                match = re.search(pattern, texte)
+                if match:
+                    h1, h2 = match.group(1), match.group(2)
+                    if ':' in h1:
+                        status["R147"] = f"active {h1}-{h2}Z"
+                    else:
+                        status["R147"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
+                    break
+            
+            # Si au moins une zone trouvée, on retourne
+            if status["R147"] != "pas d'information" or status["R45A"] != "pas d'information":
+                return status
+                
+    except Exception as e:
+        pass
+    
+    # MÉTHODE 2 : NOTAM Web (bulletin R)
+    try:
+        url = "https://notamweb.aviation-civile.gouv.fr/Script/IHM/Bul_R.php?ZoneRglmt=RTBA"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=15)
+        
+        if res.status_code == 200:
+            texte = res.text.upper()
+            
+            # R147 - Pattern NOTAM avec dates
+            if 'R147' in texte or 'R 147' in texte:
+                match = re.search(r'R\s*147.*?C(\d{10})/(\d{10})', texte, re.DOTALL)
+                if match:
+                    debut, fin = match.group(1), match.group(2)
+                    h_debut = f"{debut[6:8]}:{debut[8:10]}"
+                    h_fin = f"{fin[6:8]}:{fin[8:10]}"
+                    status["R147"] = f"active {h_debut}-{h_fin}Z"
+                elif 'R147' in texte:
+                    status["R147"] = "active (voir NOTAM)"
+            
+            # R45A
+            if any(x in texte for x in ['R45A', 'R 45A', 'R45 A']):
+                match = re.search(r'R\s*45\s*A.*?C(\d{10})/(\d{10})', texte, re.DOTALL)
+                if match:
+                    debut, fin = match.group(1), match.group(2)
+                    h_debut = f"{debut[6:8]}:{debut[8:10]}"
+                    h_fin = f"{fin[6:8]}:{fin[8:10]}"
+                    status["R45A"] = f"active {h_debut}-{h_fin}Z"
+                elif any(x in texte for x in ['R45A', 'R 45A']):
+                    status["R45A"] = "active (voir NOTAM)"
+            
+            if status["R147"] != "pas d'information" or status["R45A"] != "pas d'information":
+                return status
+    except:
+        pass
+    
+    # MÉTHODE 3 : FAA via proxy (dernier recours)
+    try:
+        url_proxy = "https://api.allorigins.win/get?url=" + requests.utils.quote("https://www.notams.faa.gov/common/icao/LFRR.html")
+        res = requests.get(url_proxy, timeout=20)
+        
+        if res.status_code == 200:
+            data = json.loads(res.text)
+            texte = data.get('contents', '').upper()
+            
+            if texte:
+                for zone in ["R147", "R45A"]:
+                    pattern = zone.replace('A', r'\s*A')
+                    match = re.search(f"{pattern}.*?(\\d{{4}}).*?TO.*?(\\d{{4}})", texte)
+                    if match:
+                        h1, h2 = match.group(1), match.group(2)
+                        status[zone] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
+    except:
+        pass
+    
     return status
 
 async def generer_audio(vocal_fr, vocal_en):
@@ -177,7 +280,7 @@ async def executer_veille():
     <div class="alert-section">
         {html_remarques}
         <div class="alert-line">⚠️ RTBA R147 : {notams['R147']}</div>
-        <div class="alert-line" style="color:#4dabff; font-size: 0.85em;">🔹 TEST R45A : {notams['R45A']}</div>
+        <div class="alert-line" style="color:#4dabff; font-size: 0.85em;">🔹 RTBA R45A : {notams['R45A']}</div>
     </div>
     <audio controls><source src="atis.mp3?v={ts}" type="audio/mpeg"></audio>
     <button class="btn-refresh" onclick="window.location.reload()">🔄 Actualiser les données</button>
