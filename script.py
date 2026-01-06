@@ -98,8 +98,13 @@ def obtenir_donnees_moyennes():
 def scanner_notams():
     """
     Scanner NOTAM amélioré avec sources multiples
+    Retourne dict avec 'status' et 'date' pour chaque zone
     """
-    status = {"R147": "pas d'information", "R45A": "pas d'information"}
+    from datetime import datetime
+    status = {
+        "R147": {"info": "pas d'information", "date": ""},
+        "R45A": {"info": "pas d'information", "date": ""}
+    }
     
     # MÉTHODE 1 : Site AZBA du SIA (source officielle plannings)
     try:
@@ -113,40 +118,48 @@ def scanner_notams():
         if res.status_code == 200:
             texte = res.text.upper()
             
-            # Recherche R45A avec patterns multiples
+            # Recherche R45A avec extraction de date
             patterns_r45a = [
-                r'R\s*45\s*A[^\d]*(\d{4})[^\d]*(\d{4})',  # R45A 0900 1100
-                r'R45A.*?(\d{2}:\d{2})[^\d]*(\d{2}:\d{2})',  # R45A 09:00 11:00
+                r'R\s*45\s*A[^\d]*(\d{2})[/\-](\d{2})[/\-](\d{4})[^\d]*(\d{4})[^\d]*(\d{4})',  # R45A 06/01/2026 0900 1100
+                r'R\s*45\s*A[^\d]*(\d{4})[^\d]*(\d{4})',  # R45A 0900 1100 (sans date)
             ]
             
             for pattern in patterns_r45a:
                 match = re.search(pattern, texte)
                 if match:
-                    h1, h2 = match.group(1), match.group(2)
-                    if ':' in h1:
-                        status["R45A"] = f"active {h1}-{h2}Z"
-                    else:
-                        status["R45A"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
+                    groups = match.groups()
+                    if len(groups) >= 5:  # Avec date
+                        jour, mois, annee = groups[0], groups[1], groups[2]
+                        h1, h2 = groups[3], groups[4]
+                        status["R45A"]["date"] = f"{jour}/{mois}"
+                        status["R45A"]["info"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
+                    else:  # Sans date
+                        h1, h2 = groups[0], groups[1]
+                        status["R45A"]["info"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
                     break
             
-            # Recherche R147
+            # Recherche R147 avec extraction de date
             patterns_r147 = [
+                r'R\s*147[^\d]*(\d{2})[/\-](\d{2})[/\-](\d{4})[^\d]*(\d{4})[^\d]*(\d{4})',
                 r'R\s*147[^\d]*(\d{4})[^\d]*(\d{4})',
-                r'R147.*?(\d{2}:\d{2})[^\d]*(\d{2}:\d{2})',
             ]
             
             for pattern in patterns_r147:
                 match = re.search(pattern, texte)
                 if match:
-                    h1, h2 = match.group(1), match.group(2)
-                    if ':' in h1:
-                        status["R147"] = f"active {h1}-{h2}Z"
-                    else:
-                        status["R147"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
+                    groups = match.groups()
+                    if len(groups) >= 5:  # Avec date
+                        jour, mois, annee = groups[0], groups[1], groups[2]
+                        h1, h2 = groups[3], groups[4]
+                        status["R147"]["date"] = f"{jour}/{mois}"
+                        status["R147"]["info"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
+                    else:  # Sans date
+                        h1, h2 = groups[0], groups[1]
+                        status["R147"]["info"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
                     break
             
             # Si au moins une zone trouvée, on retourne
-            if status["R147"] != "pas d'information" or status["R45A"] != "pas d'information":
+            if status["R147"]["info"] != "pas d'information" or status["R45A"]["info"] != "pas d'information":
                 return status
                 
     except Exception as e:
