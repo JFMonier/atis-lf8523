@@ -116,47 +116,26 @@ def scanner_notams():
         res = requests.get(url, headers=headers, timeout=15)
         
         if res.status_code == 200:
-            texte = res.text.upper()
+            texte = res.text
             
-            # Recherche R45A avec extraction de date
-            patterns_r45a = [
-                r'R\s*45\s*A[^\d]*(\d{2})[/\-](\d{2})[/\-](\d{4})[^\d]*(\d{4})[^\d]*(\d{4})',  # R45A 06/01/2026 0900 1100
-                r'R\s*45\s*A[^\d]*(\d{4})[^\d]*(\d{4})',  # R45A 0900 1100 (sans date)
-            ]
+            # Pattern plus large pour capturer date + horaires
+            # Ex: "06/01/2026" suivi de "R45A" suivi de "0900-1100"
             
-            for pattern in patterns_r45a:
-                match = re.search(pattern, texte)
-                if match:
-                    groups = match.groups()
-                    if len(groups) >= 5:  # Avec date
-                        jour, mois, annee = groups[0], groups[1], groups[2]
-                        h1, h2 = groups[3], groups[4]
-                        status["R45A"]["date"] = f"{jour}/{mois}"
-                        status["R45A"]["info"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
-                    else:  # Sans date
-                        h1, h2 = groups[0], groups[1]
-                        status["R45A"]["info"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
-                    break
+            # R45A avec date
+            match_r45a = re.search(r'(\d{2})/(\d{2})/(\d{4}).*?R\s*45\s*A.*?(\d{2}):?(\d{2})[^\d]*(\d{2}):?(\d{2})', texte, re.IGNORECASE | re.DOTALL)
+            if match_r45a:
+                jour, mois = match_r45a.group(1), match_r45a.group(2)
+                h1, m1, h2, m2 = match_r45a.group(4), match_r45a.group(5), match_r45a.group(6), match_r45a.group(7)
+                status["R45A"]["date"] = f"{jour}/{mois}"
+                status["R45A"]["info"] = f"active {h1}h{m1}-{h2}h{m2}Z"
             
-            # Recherche R147 avec extraction de date
-            patterns_r147 = [
-                r'R\s*147[^\d]*(\d{2})[/\-](\d{2})[/\-](\d{4})[^\d]*(\d{4})[^\d]*(\d{4})',
-                r'R\s*147[^\d]*(\d{4})[^\d]*(\d{4})',
-            ]
-            
-            for pattern in patterns_r147:
-                match = re.search(pattern, texte)
-                if match:
-                    groups = match.groups()
-                    if len(groups) >= 5:  # Avec date
-                        jour, mois, annee = groups[0], groups[1], groups[2]
-                        h1, h2 = groups[3], groups[4]
-                        status["R147"]["date"] = f"{jour}/{mois}"
-                        status["R147"]["info"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
-                    else:  # Sans date
-                        h1, h2 = groups[0], groups[1]
-                        status["R147"]["info"] = f"active {h1[:2]}h{h1[2:]}-{h2[:2]}h{h2[2:]}Z"
-                    break
+            # R147 avec date
+            match_r147 = re.search(r'(\d{2})/(\d{2})/(\d{4}).*?R\s*147.*?(\d{2}):?(\d{2})[^\d]*(\d{2}):?(\d{2})', texte, re.IGNORECASE | re.DOTALL)
+            if match_r147:
+                jour, mois = match_r147.group(1), match_r147.group(2)
+                h1, m1, h2, m2 = match_r147.group(4), match_r147.group(5), match_r147.group(6), match_r147.group(7)
+                status["R147"]["date"] = f"{jour}/{mois}"
+                status["R147"]["info"] = f"active {h1}h{m1}-{h2}h{m2}Z"
             
             # Si au moins une zone trouvée, on retourne
             if status["R147"]["info"] != "pas d'information" or status["R45A"]["info"] != "pas d'information":
@@ -283,40 +262,34 @@ async def executer_veille():
         * {{ box-sizing: border-box; }}
         body {{ 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            text-align: center; 
-            padding: 20px; 
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            padding: 2.5vh 2.5vw; 
+            background: linear-gradient(135deg, #2c5f7c 0%, #4a90b8 50%, #6bb6d6 100%);
             color: #e0e0e0; 
             min-height: 100vh; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
             margin: 0; 
         }}
-        .card {{ 
-            background: rgba(30, 30, 30, 0.95); 
-            padding: 30px 20px; 
-            border-radius: 20px; 
-            max-width: 450px; 
+        .container {{ 
             width: 95%; 
-            border: 1px solid rgba(77, 171, 255, 0.3); 
-            box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(77, 171, 255, 0.1); 
-            backdrop-filter: blur(10px);
+            max-width: 100%;
+            margin: 0 auto;
         }}
         h1 {{ 
             color: #fff; 
             margin: 0 0 8px 0; 
             font-size: 2em; 
             font-weight: 700;
-            text-shadow: 0 2px 10px rgba(77, 171, 255, 0.5);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            text-align: center;
         }} 
         .subtitle {{ 
-            color: #4dabff; 
+            color: #fff; 
             font-weight: 600; 
             margin-bottom: 30px; 
             text-transform: uppercase; 
             letter-spacing: 2px; 
-            font-size: 0.85em; 
+            font-size: 0.85em;
+            text-align: center;
+            opacity: 0.9;
         }}
         .data-grid {{ 
             display: grid; 
@@ -325,20 +298,21 @@ async def executer_veille():
             margin-bottom: 25px; 
         }}
         .data-item {{ 
-            background: linear-gradient(135deg, rgba(42, 42, 42, 0.8) 0%, rgba(35, 35, 35, 0.9) 100%); 
+            background: rgba(255, 255, 255, 0.15); 
             padding: 18px; 
             border-radius: 12px; 
-            border: 1px solid rgba(77, 171, 255, 0.2); 
+            border: 1px solid rgba(255, 255, 255, 0.25); 
             transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
         }}
         .data-item:hover {{
             transform: translateY(-2px);
-            border-color: rgba(77, 171, 255, 0.5);
-            box-shadow: 0 5px 15px rgba(77, 171, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }}
         .label {{ 
             font-size: 0.7em; 
-            color: #999; 
+            color: rgba(255, 255, 255, 0.7); 
             text-transform: uppercase; 
             letter-spacing: 1px;
             font-weight: 600;
@@ -351,11 +325,12 @@ async def executer_veille():
         }}
         .alert-section {{ 
             text-align: left; 
-            background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%); 
+            background: rgba(255, 255, 255, 0.12); 
             border-left: 4px solid #ff9800; 
             padding: 18px; 
             margin-bottom: 25px; 
             border-radius: 8px;
+            backdrop-filter: blur(5px);
         }}
         .alert-line {{ 
             color: #ffb74d; 
@@ -378,15 +353,16 @@ async def executer_veille():
             border: 1px solid rgba(255, 183, 77, 0.4);
         }}
         .audio-container {{
-            background: linear-gradient(135deg, rgba(77, 171, 255, 0.15) 0%, rgba(77, 171, 255, 0.25) 100%);
+            background: rgba(255, 255, 255, 0.15);
             padding: 15px;
             border-radius: 12px;
             margin: 20px 0;
-            border: 2px solid rgba(77, 171, 255, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px);
         }}
         .audio-label {{
             font-size: 0.85em;
-            color: #4dabff;
+            color: #fff;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -400,9 +376,9 @@ async def executer_veille():
             height: 40px;
         }}
         .btn-refresh {{ 
-            background: linear-gradient(135deg, #4dabff 0%, #3d8fd1 100%); 
+            background: rgba(255, 255, 255, 0.25); 
             color: white; 
-            border: none; 
+            border: 2px solid rgba(255, 255, 255, 0.4); 
             padding: 14px 24px; 
             border-radius: 10px; 
             cursor: pointer; 
@@ -411,45 +387,47 @@ async def executer_veille():
             transition: all 0.3s ease; 
             font-weight: 700; 
             width: 100%; 
-            box-shadow: 0 4px 15px rgba(77, 171, 255, 0.3);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            backdrop-filter: blur(5px);
         }}
         .btn-refresh:hover {{
+            background: rgba(255, 255, 255, 0.35);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(77, 171, 255, 0.4);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
         }}
         .btn-refresh:active {{
             transform: translateY(0);
         }}
         .update-info {{
             font-size: 0.9em;
-            color: #4dabff;
+            color: #fff;
             margin-top: 12px;
             font-weight: 600;
-            background: rgba(77, 171, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             padding: 8px 12px;
             border-radius: 8px;
-            border: 1px solid rgba(77, 171, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            text-align: center;
         }}
         .disclaimer {{ 
             font-size: 0.7em; 
-            color: #aaa; 
+            color: rgba(255, 255, 255, 0.8); 
             margin-top: 30px; 
             line-height: 1.6; 
-            border-top: 1px solid rgba(255,255,255,0.1); 
+            border-top: 1px solid rgba(255,255,255,0.2); 
             padding-top: 20px; 
             text-align: left;
-            background: rgba(255, 152, 0, 0.05);
+            background: rgba(255, 152, 0, 0.12);
             padding: 15px;
             border-radius: 8px;
             border-left: 3px solid #ff9800;
         }}
         .disclaimer strong {{
-            color: #ffb74d;
+            color: #fff;
             font-weight: 700;
         }}
-    </style></head><body><div class="card">
+    </style></head><body><div class="container">
     <h1>ATIS LF8523</h1><div class="subtitle">Atlantic Air Park</div>
     <div class="data-grid">
         <div class="data-item"><div class="label">Heure (UTC)</div><div class="value">⌚ {m['heure_metar']}Z</div></div>
