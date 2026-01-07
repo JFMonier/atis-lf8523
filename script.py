@@ -98,11 +98,11 @@ def obtenir_donnees_moyennes():
 def scanner_notams():
     """
     Scanner NOTAM amélioré - R147 uniquement
-    Retourne dict avec 'status' et 'date' pour la zone
+    Retourne dict avec 'status', 'date' et 'annee' pour validation
     """
     from datetime import datetime
     status = {
-        "R147": {"info": "pas d'information", "date": ""}
+        "R147": {"info": "pas d'information", "date": "", "annee": ""}
     }
     
     # MÉTHODE 1 : Site AZBA du SIA (source officielle plannings)
@@ -123,9 +123,10 @@ def scanner_notams():
             # R147 avec date
             match_r147 = re.search(r'(\d{2})/(\d{2})/(\d{4}).*?R\s*147.*?(\d{2}):?(\d{2})[^\d]*(\d{2}):?(\d{2})', texte, re.IGNORECASE | re.DOTALL)
             if match_r147:
-                jour, mois = match_r147.group(1), match_r147.group(2)
+                jour, mois, annee = match_r147.group(1), match_r147.group(2), match_r147.group(3)
                 h1, m1, h2, m2 = match_r147.group(4), match_r147.group(5), match_r147.group(6), match_r147.group(7)
                 status["R147"]["date"] = f"{jour}/{mois}"
+                status["R147"]["annee"] = annee
                 status["R147"]["info"] = f"active {h1}h{m1}-{h2}h{m2}Z"
             
             # Si zone trouvée, on retourne
@@ -149,10 +150,11 @@ def scanner_notams():
                 match = re.search(r'R\s*147.*?C(\d{10})/(\d{10})', texte, re.DOTALL)
                 if match:
                     debut, fin = match.group(1), match.group(2)
-                    jour, mois = debut[4:6], debut[2:4]
+                    annee, mois, jour = "20" + debut[0:2], debut[2:4], debut[4:6]
                     h_debut = f"{debut[6:8]}:{debut[8:10]}"
                     h_fin = f"{fin[6:8]}:{fin[8:10]}"
                     status["R147"]["date"] = f"{jour}/{mois}"
+                    status["R147"]["annee"] = annee
                     status["R147"]["info"] = f"active {h_debut}-{h_fin}Z"
                 elif 'R147' in texte:
                     status["R147"]["info"] = "active (voir NOTAM)"
@@ -200,6 +202,32 @@ async def executer_veille():
     maintenant = datetime.now()
     date_generation = maintenant.strftime("%d/%m/%Y à %H:%M")
     date_generation_courte = maintenant.strftime("%d/%m %H:%M")
+    
+    # Vérification si le NOTAM est périmé ou pour aujourd'hui/demain
+    notam_r147_actif = False
+    if notams['R147']['date'] and notams['R147']['annee']:
+        try:
+            jour, mois = notams['R147']['date'].split("/")
+            date_notam = datetime(int(notams['R147']['annee']), int(mois), int(jour))
+            
+            # Extraire l'heure de fin du NOTAM
+            match_heure_fin = re.search(r'-(\d{2})h(\d{2})Z', notams['R147']['info'])
+            if match_heure_fin:
+                heure_fin = int(match_heure_fin.group(1))
+                minute_fin = int(match_heure_fin.group(2))
+                date_notam_fin = date_notam.replace(hour=heure_fin, minute=minute_fin)
+                
+                # Si la date/heure de fin est passée, ne pas afficher
+                if date_notam_fin > maintenant:
+                    notam_r147_actif = True
+            elif date_notam.date() >= maintenant.date():
+                # Pas d'heure précise mais date future/aujourd'hui
+                notam_r147_actif = True
+        except:
+            # En cas d'erreur, on affiche quand même
+            notam_r147_actif = "active" in notams['R147']['info'].lower()
+    else:
+        notam_r147_actif = "active" in notams['R147']['info'].lower()
 
     remarques_raw = os.getenv("ATIS_REMARQUES", "Piste en herbe 08/26 fermée cause travaux | Prudence :: Grass runway 08/26 closed due to works | Caution")
     partie_fr, partie_en = remarques_raw.split("::") if "::" in remarques_raw else (remarques_raw, "Caution")
@@ -211,47 +239,51 @@ async def executer_veille():
     audio_remarques_fr = ". ".join(liste_fr) + "."
     audio_remarques_en = ". ".join(liste_en) + "."
 
-    # AUDIO FR - Conversion horaires pour lecture naturelle
-    notam_info_fr = notams['R147']['info']
-    notam_date_fr = notams['R147']['date']
-    
-    # Extraction et conversion des horaires pour l'audio français
-    if "active" in notam_info_fr and notam_date_fr:
-        # Pattern: "active 09h30-11h00Z" → "active le 07/01 de 9 heures 30 à 11 heures UTC"
-        match_horaire = re.search(r'active (\d{2})h(\d{2})-(\d{2})h(\d{2})Z', notam_info_fr)
-        if match_horaire:
-            h1, m1, h2, m2 = match_horaire.groups()
-            h1_audio = int(h1)
-            m1_audio = f" {int(m1)}" if int(m1) > 0 else ""
-            h2_audio = int(h2)
-            m2_audio = f" {int(m2)}" if int(m2) > 0 else ""
-            notam_audio_fr = f"Zone R 147 : active le {notam_date_fr} de {h1_audio} heures{m1_audio} à {h2_audio} heures{m2_audio} UTC."
+    # AUDIO FR - Conversion horaires pour lecture naturelle (seulement si actif)
+    notam_audio_fr = ""
+    if notam_r147_actif:
+        notam_info_fr = notams['R147']['info']
+        notam_date_fr = notams['R147']['date']
+        
+        # Extraction et conversion des horaires pour l'audio français
+        if "active" in notam_info_fr and notam_date_fr:
+            # Pattern: "active 09h30-11h00Z" → "active le 07/01 de 9 heures 30 à 11 heures UTC"
+            match_horaire = re.search(r'active (\d{2})h(\d{2})-(\d{2})h(\d{2})Z', notam_info_fr)
+            if match_horaire:
+                h1, m1, h2, m2 = match_horaire.groups()
+                h1_audio = int(h1)
+                m1_audio = f" {int(m1)}" if int(m1) > 0 else ""
+                h2_audio = int(h2)
+                m2_audio = f" {int(m2)}" if int(m2) > 0 else ""
+                notam_audio_fr = f"Zone R 147 : active le {notam_date_fr} de {h1_audio} heures{m1_audio} à {h2_audio} heures{m2_audio} UTC."
+            else:
+                notam_audio_fr = f"Zone R 147 : {notam_info_fr}."
         else:
             notam_audio_fr = f"Zone R 147 : {notam_info_fr}."
-    else:
-        notam_audio_fr = f"Zone R 147 : {notam_info_fr}."
 
     txt_fr = (f"Atlantic Air Park, observation de {m['heure_metar'].replace(':',' heures ')} UTC. "
               f"{m['w_audio_fr']}. Température {m['t_audio_fr']} degrés. Point de rosée {m['d_audio_fr']} degrés. "
               f"Q N H {m['q_audio_fr']} hectopascals. {audio_remarques_fr} {notam_audio_fr}")
 
-    # AUDIO EN - Conversion horaires pour lecture naturelle
-    notam_info_en = notams['R147']['info']
-    notam_date_en = notams['R147']['date']
-    
-    if "active" in notam_info_en and notam_date_en:
-        match_horaire = re.search(r'active (\d{2})h(\d{2})-(\d{2})h(\d{2})Z', notam_info_en)
-        if match_horaire:
-            h1, m1, h2, m2 = match_horaire.groups()
-            h1_audio = int(h1)
-            m1_audio = f" {int(m1)}" if int(m1) > 0 else ""
-            h2_audio = int(h2)
-            m2_audio = f" {int(m2)}" if int(m2) > 0 else ""
-            notam_audio_en = f"Military zone R 147: active on {notam_date_en.replace('/', ' ')} from {h1_audio}{m1_audio} to {h2_audio}{m2_audio} UTC."
+    # AUDIO EN - Conversion horaires pour lecture naturelle (seulement si actif)
+    notam_audio_en = ""
+    if notam_r147_actif:
+        notam_info_en = notams['R147']['info']
+        notam_date_en = notams['R147']['date']
+        
+        if "active" in notam_info_en and notam_date_en:
+            match_horaire = re.search(r'active (\d{2})h(\d{2})-(\d{2})h(\d{2})Z', notam_info_en)
+            if match_horaire:
+                h1, m1, h2, m2 = match_horaire.groups()
+                h1_audio = int(h1)
+                m1_audio = f" {int(m1)}" if int(m1) > 0 else ""
+                h2_audio = int(h2)
+                m2_audio = f" {int(m2)}" if int(m2) > 0 else ""
+                notam_audio_en = f"Military zone R 147: active on {notam_date_en.replace('/', ' ')} from {h1_audio}{m1_audio} to {h2_audio}{m2_audio} UTC."
+            else:
+                notam_audio_en = f"Military zone R 147: {notam_info_en}."
         else:
             notam_audio_en = f"Military zone R 147: {notam_info_en}."
-    else:
-        notam_audio_en = f"Military zone R 147: {notam_info_en}."
     
     txt_en = (f"Atlantic Air Park observation at {m['heure_metar'].replace(':',' ')} UTC. "
               f"{m['w_audio_en']}. Temperature {m['t_audio_en']} degrees. Dew point {m['d_audio_en']} degrees. "
@@ -446,10 +478,10 @@ async def executer_veille():
     </div>
     <div class="alert-section">
         {html_remarques}
-        <div class="alert-line" style="font-size: 1em; color: #ffb74d;">
+        {f'''<div class="alert-line" style="font-size: 1em; color: #ffb74d;">
             🚨 R147 CHARENTE : {notams['R147']['info']}
             {('<span class="zone-date">📅 ' + notams["R147"]["date"] + '</span>') if notams['R147']['date'] else ''}
-        </div>
+        </div>''' if notam_r147_actif else ''}
     </div>
     <div class="audio-container">
         <span class="audio-label">🔊 Écouter l'ATIS</span>
