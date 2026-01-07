@@ -20,10 +20,10 @@
         }
         .card { 
             background: rgba(30, 30, 30, 0.95); 
-            padding: 30px; 
+            padding: 30px 20px; 
             border-radius: 20px; 
-            max-width: 550px; 
-            width: 90%; 
+            max-width: 450px; 
+            width: 95%; 
             border: 1px solid rgba(77, 171, 255, 0.3); 
             box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(77, 171, 255, 0.1); 
             backdrop-filter: blur(10px);
@@ -93,19 +93,36 @@
         .alert-line:last-child { margin-bottom: 0; }
         .zone-date {
             display: inline-block;
-            background: rgba(77, 171, 255, 0.2);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
+            background: rgba(255, 183, 77, 0.25);
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.95em;
             margin-left: 8px;
+            color: #ffd54f;
+            font-weight: 700;
+            border: 1px solid rgba(255, 183, 77, 0.4);
+        }
+        .audio-container {
+            background: linear-gradient(135deg, rgba(77, 171, 255, 0.15) 0%, rgba(77, 171, 255, 0.25) 100%);
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 2px solid rgba(77, 171, 255, 0.4);
+        }
+        .audio-label {
+            font-size: 0.85em;
             color: #4dabff;
-            font-weight: 500;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            display: block;
         }
         audio { 
             width: 100%; 
             filter: invert(90%) hue-rotate(180deg); 
-            margin-top: 10px; 
             border-radius: 8px;
+            height: 40px;
         }
         .btn-refresh { 
             background: linear-gradient(135deg, #4dabff 0%, #3d8fd1 100%); 
@@ -131,10 +148,14 @@
             transform: translateY(0);
         }
         .update-info {
-            font-size: 0.75em;
-            color: #999;
-            margin-top: 8px;
-            font-style: italic;
+            font-size: 0.9em;
+            color: #4dabff;
+            margin-top: 12px;
+            font-weight: 600;
+            background: rgba(77, 171, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(77, 171, 255, 0.3);
         }
         .disclaimer { 
             font-size: 0.7em; 
@@ -156,26 +177,29 @@
     </style></head><body><div class="card">
     <h1>ATIS LF8523</h1><div class="subtitle">Atlantic Air Park</div>
     <div class="data-grid">
-        <div class="data-item"><div class="label">Heure (UTC)</div><div class="value">⌚ 10:30Z</div></div>
-        <div class="data-item"><div class="label">Vent</div><div class="value">🌬 200 / 2kt</div></div>
-        <div class="data-item"><div class="label">Temp / Rosée</div><div class="value">🌡 4° / 4°</div></div>
+        <div class="data-item"><div class="label">Heure (UTC)</div><div class="value">⌚ 11:00Z</div></div>
+        <div class="data-item"><div class="label">Vent</div><div class="value">🌬 220 / 2kt</div></div>
+        <div class="data-item"><div class="label">Temp / Rosée</div><div class="value">🌡 2° / 2°</div></div>
         <div class="data-item"><div class="label">QNH</div><div class="value">💎 1014 hPa</div></div>
     </div>
     <div class="alert-section">
         <div class="alert-line">⚠️ Attention</div><div class="alert-line">⚠️ Piste en herbe 08 26 non balisée et fermée cause travaux</div><div class="alert-line">⚠️ Péril aviaire</div>
         <div class="alert-line" style="font-size: 1em; color: #ffb74d;">
-            🚨 RTBA R147 (CHARENTE) : active 09h30-11h00Z
+            🚨 R147 CHARENTE : active 09h30-11h00Z
             
         </div>
         <!-- Ligne R45A - À SUPPRIMER quand le script sera validé -->
         <div class="alert-line" style="color:#666; font-size: 0.8em; opacity: 0.6; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
-            🔹 R45A (test - Bourgogne) : active 09h00-11h00Z
+            🔹 R45A (test) : active 09h00-11h00Z
             
         </div>
     </div>
-    <audio controls><source src="atis.mp3?v=1767783307" type="audio/mpeg"></audio>
+    <div class="audio-container">
+        <span class="audio-label">🔊 Écouter l'ATIS</span>
+        <audio controls><source src="atis.mp3?v=1767785442" type="audio/mpeg"></audio>
+    </div>
     <button class="btn-refresh" onclick="window.location.reload()">🔄 Actualiser</button>
-    <div class="update-info">Dernière mise à jour : 07/01 10:54</div>
+    <div class="update-info">🕐 Mise à jour : 07/01 11:30</div>
     <div class="disclaimer">
         <strong>⚠️ Avertissement :</strong> Les informations affichées sont indicatives et calculées à partir de sources publiques (moyennes LFBH/LFRI). 
         <strong>Atlantic Air Park ne garantit pas l'exactitude de ces données.</strong> 
