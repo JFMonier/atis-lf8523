@@ -235,10 +235,27 @@ async def executer_veille():
               f"{m['w_audio_fr']}. Température {m['t_audio_fr']} degrés. Point de rosée {m['d_audio_fr']} degrés. "
               f"Q N H {m['q_audio_fr']} hectopascals. {audio_remarques_fr} {notam_audio_fr}")
 
-    # AUDIO EN
+    # AUDIO EN - Conversion horaires pour lecture naturelle
+    notam_info_en = notams['R147']['info']
+    notam_date_en = notams['R147']['date']
+    
+    if "active" in notam_info_en and notam_date_en:
+        match_horaire = re.search(r'active (\d{2})h(\d{2})-(\d{2})h(\d{2})Z', notam_info_en)
+        if match_horaire:
+            h1, m1, h2, m2 = match_horaire.groups()
+            h1_audio = int(h1)
+            m1_audio = f" {int(m1)}" if int(m1) > 0 else ""
+            h2_audio = int(h2)
+            m2_audio = f" {int(m2)}" if int(m2) > 0 else ""
+            notam_audio_en = f"Military zone R 147: active on {notam_date_en.replace('/', ' ')} from {h1_audio}{m1_audio} to {h2_audio}{m2_audio} UTC."
+        else:
+            notam_audio_en = f"Military zone R 147: {notam_info_en}."
+    else:
+        notam_audio_en = f"Military zone R 147: {notam_info_en}."
+    
     txt_en = (f"Atlantic Air Park observation at {m['heure_metar'].replace(':',' ')} UTC. "
               f"{m['w_audio_en']}. Temperature {m['t_audio_en']} degrees. Dew point {m['d_audio_en']} degrees. "
-              f"Q N H {m['q_audio_en']} hectopascals. {audio_remarques_en}")
+              f"Q N H {m['q_audio_en']} hectopascals. {audio_remarques_en} {notam_audio_en}")
 
     await generer_audio(txt_fr, txt_en)
     ts = int(time.time())
