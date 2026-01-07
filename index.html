@@ -8,40 +8,34 @@
         * { box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            text-align: center; 
-            padding: 20px; 
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            padding: 2.5vh 2.5vw; 
+            background: linear-gradient(135deg, #2c5f7c 0%, #4a90b8 50%, #6bb6d6 100%);
             color: #e0e0e0; 
             min-height: 100vh; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
             margin: 0; 
         }
-        .card { 
-            background: rgba(30, 30, 30, 0.95); 
-            padding: 30px 20px; 
-            border-radius: 20px; 
-            max-width: 450px; 
+        .container { 
             width: 95%; 
-            border: 1px solid rgba(77, 171, 255, 0.3); 
-            box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(77, 171, 255, 0.1); 
-            backdrop-filter: blur(10px);
+            max-width: 100%;
+            margin: 0 auto;
         }
         h1 { 
             color: #fff; 
             margin: 0 0 8px 0; 
             font-size: 2em; 
             font-weight: 700;
-            text-shadow: 0 2px 10px rgba(77, 171, 255, 0.5);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            text-align: center;
         } 
         .subtitle { 
-            color: #4dabff; 
+            color: #fff; 
             font-weight: 600; 
             margin-bottom: 30px; 
             text-transform: uppercase; 
             letter-spacing: 2px; 
-            font-size: 0.85em; 
+            font-size: 0.85em;
+            text-align: center;
+            opacity: 0.9;
         }
         .data-grid { 
             display: grid; 
@@ -50,20 +44,21 @@
             margin-bottom: 25px; 
         }
         .data-item { 
-            background: linear-gradient(135deg, rgba(42, 42, 42, 0.8) 0%, rgba(35, 35, 35, 0.9) 100%); 
+            background: rgba(255, 255, 255, 0.15); 
             padding: 18px; 
             border-radius: 12px; 
-            border: 1px solid rgba(77, 171, 255, 0.2); 
+            border: 1px solid rgba(255, 255, 255, 0.25); 
             transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
         }
         .data-item:hover {
             transform: translateY(-2px);
-            border-color: rgba(77, 171, 255, 0.5);
-            box-shadow: 0 5px 15px rgba(77, 171, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
         .label { 
             font-size: 0.7em; 
-            color: #999; 
+            color: rgba(255, 255, 255, 0.7); 
             text-transform: uppercase; 
             letter-spacing: 1px;
             font-weight: 600;
@@ -76,11 +71,12 @@
         }
         .alert-section { 
             text-align: left; 
-            background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%); 
+            background: rgba(255, 255, 255, 0.12); 
             border-left: 4px solid #ff9800; 
             padding: 18px; 
             margin-bottom: 25px; 
             border-radius: 8px;
+            backdrop-filter: blur(5px);
         }
         .alert-line { 
             color: #ffb74d; 
@@ -103,15 +99,16 @@
             border: 1px solid rgba(255, 183, 77, 0.4);
         }
         .audio-container {
-            background: linear-gradient(135deg, rgba(77, 171, 255, 0.15) 0%, rgba(77, 171, 255, 0.25) 100%);
+            background: rgba(255, 255, 255, 0.15);
             padding: 15px;
             border-radius: 12px;
             margin: 20px 0;
-            border: 2px solid rgba(77, 171, 255, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px);
         }
         .audio-label {
             font-size: 0.85em;
-            color: #4dabff;
+            color: #fff;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -125,9 +122,9 @@
             height: 40px;
         }
         .btn-refresh { 
-            background: linear-gradient(135deg, #4dabff 0%, #3d8fd1 100%); 
+            background: rgba(255, 255, 255, 0.25); 
             color: white; 
-            border: none; 
+            border: 2px solid rgba(255, 255, 255, 0.4); 
             padding: 14px 24px; 
             border-radius: 10px; 
             cursor: pointer; 
@@ -136,70 +133,72 @@
             transition: all 0.3s ease; 
             font-weight: 700; 
             width: 100%; 
-            box-shadow: 0 4px 15px rgba(77, 171, 255, 0.3);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            backdrop-filter: blur(5px);
         }
         .btn-refresh:hover {
+            background: rgba(255, 255, 255, 0.35);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(77, 171, 255, 0.4);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
         }
         .btn-refresh:active {
             transform: translateY(0);
         }
         .update-info {
             font-size: 0.9em;
-            color: #4dabff;
+            color: #fff;
             margin-top: 12px;
             font-weight: 600;
-            background: rgba(77, 171, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             padding: 8px 12px;
             border-radius: 8px;
-            border: 1px solid rgba(77, 171, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            text-align: center;
         }
         .disclaimer { 
             font-size: 0.7em; 
-            color: #aaa; 
+            color: rgba(255, 255, 255, 0.8); 
             margin-top: 30px; 
             line-height: 1.6; 
-            border-top: 1px solid rgba(255,255,255,0.1); 
+            border-top: 1px solid rgba(255,255,255,0.2); 
             padding-top: 20px; 
             text-align: left;
-            background: rgba(255, 152, 0, 0.05);
+            background: rgba(255, 152, 0, 0.12);
             padding: 15px;
             border-radius: 8px;
             border-left: 3px solid #ff9800;
         }
         .disclaimer strong {
-            color: #ffb74d;
+            color: #fff;
             font-weight: 700;
         }
-    </style></head><body><div class="card">
+    </style></head><body><div class="container">
     <h1>ATIS LF8523</h1><div class="subtitle">Atlantic Air Park</div>
     <div class="data-grid">
-        <div class="data-item"><div class="label">Heure (UTC)</div><div class="value">⌚ 13:00Z</div></div>
-        <div class="data-item"><div class="label">Vent</div><div class="value">🌬 300 / 8kt</div></div>
-        <div class="data-item"><div class="label">Temp / Rosée</div><div class="value">🌡 5° / 4°</div></div>
+        <div class="data-item"><div class="label">Heure (UTC)</div><div class="value">⌚ 13:30Z</div></div>
+        <div class="data-item"><div class="label">Vent</div><div class="value">🌬 295 / 6kt</div></div>
+        <div class="data-item"><div class="label">Temp / Rosée</div><div class="value">🌡 6° / 4°</div></div>
         <div class="data-item"><div class="label">QNH</div><div class="value">💎 1014 hPa</div></div>
     </div>
     <div class="alert-section">
         <div class="alert-line">⚠️ Attention</div><div class="alert-line">⚠️ Piste en herbe 08 26 non balisée et fermée cause travaux</div><div class="alert-line">⚠️ Péril aviaire</div>
         <div class="alert-line" style="font-size: 1em; color: #ffb74d;">
             🚨 R147 CHARENTE : active 09h30-11h00Z
-            
+            <span class="zone-date">📅 07/01</span>
         </div>
         <!-- Ligne R45A - À SUPPRIMER quand le script sera validé -->
         <div class="alert-line" style="color:#666; font-size: 0.8em; opacity: 0.6; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
             🔹 R45A (test) : active 09h00-11h00Z
-            
+            <span class="zone-date">📅 07/01</span>
         </div>
     </div>
     <div class="audio-container">
         <span class="audio-label">🔊 Écouter l'ATIS</span>
-        <audio controls><source src="atis.mp3?v=1767791147" type="audio/mpeg"></audio>
+        <audio controls><source src="atis.mp3?v=1767793726" type="audio/mpeg"></audio>
     </div>
     <button class="btn-refresh" onclick="window.location.reload()">🔄 Actualiser</button>
-    <div class="update-info">🕐 Mise à jour : 07/01 13:05</div>
+    <div class="update-info">🕐 Mise à jour : 07/01 13:48</div>
     <div class="disclaimer">
         <strong>⚠️ Avertissement :</strong> Les informations affichées sont indicatives et calculées à partir de sources publiques (moyennes LFBH/LFRI). 
         <strong>Atlantic Air Park ne garantit pas l'exactitude de ces données.</strong> 
