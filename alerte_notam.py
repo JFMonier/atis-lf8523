@@ -51,6 +51,7 @@ def scanner_notams():
             texte = res.text
             
             if 'R147' in texte or 'R 147' in texte:
+                # Pattern 1: Format standard NOTAM C2601120930/2601121100
                 match = re.search(r'R\s*147.*?C(\d{10})/(\d{10})', texte, re.DOTALL)
                 if match:
                     debut, fin = match.group(1), match.group(2)
@@ -60,8 +61,19 @@ def scanner_notams():
                     status["R147"]["date"] = f"{jour}/{mois}"
                     status["R147"]["annee"] = annee
                     status["R147"]["info"] = f"active {h_debut}-{h_fin}Z"
-                elif 'R147' in texte:
-                    status["R147"]["info"] = "active (voir NOTAM)"
+                else:
+                    # Pattern 2: Format "DU: 12 01 2026 09:00" + "R147 CHARENTE 0930-1100"
+                    match_date = re.search(r'DU:\s*(\d{2})\s+(\d{2})\s+(\d{4})\s+(\d{2}):(\d{2})', texte, re.IGNORECASE)
+                    match_r147 = re.search(r'R147\s+CHARENTE\s+(\d{2})(\d{2})-(\d{2})(\d{2})', texte, re.IGNORECASE)
+                    
+                    if match_date and match_r147:
+                        jour, mois, annee = match_date.group(1), match_date.group(2), match_date.group(3)
+                        h1, m1, h2, m2 = match_r147.group(1), match_r147.group(2), match_r147.group(3), match_r147.group(4)
+                        status["R147"]["date"] = f"{jour}/{mois}"
+                        status["R147"]["annee"] = annee
+                        status["R147"]["info"] = f"active {h1}:{m1}-{h2}:{m2}Z"
+                    elif 'R147' in texte:
+                        status["R147"]["info"] = "active (voir NOTAM)"
             
             if status["R147"]["info"] != "pas d'information":
                 return status
