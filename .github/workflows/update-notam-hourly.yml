@@ -1,1 +1,37 @@
+# .github/workflows/update-notam-hourly.yml
+name: Update NOTAM (1 heure)
 
+on:
+  schedule:
+    - cron: '5 * * * *'  # Toutes les heures à :05 (évite collision avec ATIS à :00)
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: pip install requests edge-tts
+      
+      - name: Force NOTAM refresh
+        env:
+          ATIS_REMARQUES: ${{ secrets.ATIS_REMARQUES }}
+          FORCE_NOTAM_REFRESH: "1"  # Force le scan NOTAM
+        run: python script.py
+      
+      - name: Commit and Push
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add index.html atis.mp3 notam_cache.json 2>/dev/null || echo "Pas de changements"
+          git commit -m "📋 NOTAM update (hourly)" || exit 0
+          git pull --rebase origin main
+          git push origin main
