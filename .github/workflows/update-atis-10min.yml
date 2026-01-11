@@ -2,15 +2,18 @@ name: Update ATIS (Météo 10 min)
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # Toutes les 10 minutes
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
       
       - uses: actions/setup-python@v5
@@ -20,17 +23,16 @@ jobs:
       - name: Install dependencies
         run: pip install requests edge-tts
       
-      - name: Run ATIS update (météo + NOTAM cached)
+      - name: Run ATIS update
         env:
           ATIS_REMARQUES: ${{ secrets.ATIS_REMARQUES }}
-          FORCE_NOTAM_REFRESH: "0"  # Utilise le cache
+          FORCE_NOTAM_REFRESH: "0"
         run: python script.py
       
       - name: Commit and Push
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add index.html atis.mp3 2>/dev/null || echo "Pas de changements"
-          git commit -m "🔄 ATIS update (météo)" || exit 0
-          git pull --rebase origin main
-          git push origin main
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add index.html atis.mp3 notam_cache.json 2>/dev/null || true
+          git diff --quiet && git diff --staged --quiet || git commit -m "🔄 ATIS update (météo)"
+          git push
