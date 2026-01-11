@@ -2,15 +2,18 @@ name: Update NOTAM (1 heure)
 
 on:
   schedule:
-    - cron: '5 * * * *'  # Toutes les heures à :05 (évite collision avec ATIS à :00)
+    - cron: '5 * * * *'
   workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
       
       - uses: actions/setup-python@v5
@@ -23,14 +26,13 @@ jobs:
       - name: Force NOTAM refresh
         env:
           ATIS_REMARQUES: ${{ secrets.ATIS_REMARQUES }}
-          FORCE_NOTAM_REFRESH: "1"  # Force le scan NOTAM
+          FORCE_NOTAM_REFRESH: "1"
         run: python script.py
       
       - name: Commit and Push
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add index.html atis.mp3 notam_cache.json 2>/dev/null || echo "Pas de changements"
-          git commit -m "📋 NOTAM update (hourly)" || exit 0
-          git pull --rebase origin main
-          git push origin main
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add index.html atis.mp3 notam_cache.json 2>/dev/null || true
+          git diff --quiet && git diff --staged --quiet || git commit -m "📋 NOTAM update"
+          git push
