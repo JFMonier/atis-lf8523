@@ -5,7 +5,8 @@ import asyncio
 import edge_tts
 import time
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
 
 STATIONS = ["LFBH", "LFRI"]
 
