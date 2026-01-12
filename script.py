@@ -165,21 +165,22 @@ def scanner_notams(force_refresh=False):
     with open(cache_file, 'w') as f: json.dump(status, f)
     return status
 
+
 async def generer_audio(vocal_fr, vocal_en):
-    await edge_tts.Communicate(vocal_fr, "fr-FR-HenriNeural", rate="+5%").save("fr.mp3")
-    await edge_tts.Communicate(vocal_en, "en-GB-ThomasNeural", rate="+10%").save("en.mp3")
-    ts = int(time.time())
+    ts = int(time.time())  # Timestamp unique
+    await edge_tts.Communicate(vocal_fr, "fr-FR-HenriNeural", rate="+5%").save(f"fr_{ts}.mp3")
+    await edge_tts.Communicate(vocal_en, "en-GB-ThomasNeural", rate="+10%").save(f"en_{ts}.mp3")
     with open(f"atis_{ts}.mp3", "wb") as f:
-        for fname in ["fr.mp3", "en.mp3"]:
+        for fname in [f"fr_{ts}.mp3", f"en_{ts}.mp3"]:
             with open(fname, "rb") as fd:
                 f.write(fd.read())
+    # Supprimer les anciens fichiers
     for old_file in glob.glob("atis_*.mp3"):
         if old_file != f"atis_{ts}.mp3":
             os.remove(old_file)
     os.rename(f"atis_{ts}.mp3", "atis.mp3")  # Remplace l'ancien fichier
-    for f in ["fr.mp3", "en.mp3"]:
-        if os.path.exists(f):
-            os.remove(f)
+    for f in [f"fr_{ts}.mp3", f"en_{ts}.mp3"]:
+        os.remove(f)
 
 async def executer_veille():
     m = obtenir_donnees_moyennes()
